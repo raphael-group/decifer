@@ -1,0 +1,2 @@
+include LICENSE setup.py
+recursive-include src *
