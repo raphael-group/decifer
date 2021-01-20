@@ -131,7 +131,7 @@ DeCiFer is in active development, please report any issue or question as this co
 <a name="contacts"></a>
 ## Contacts
 
-DeCiFer has been developped and actively mantained by three previously a Postdoctoral Research Associate at Princeton University in the research group of prof. Ben Raphael:
+DeCiFer has been developped and actively mantained by three previous Postdoctoral Research Associates at Princeton University in the research group of prof. Ben Raphael:
 
 - [Simone Zaccaria](https://simozacca.github.io/) (most of algorithmic core, likelihood computation, and Python implementation), group leader of the [Computational Cancer Genomics research group](https://www.ucl.ac.uk/cancer/zaccaria-lab) at UCL Cancer Institute, London, UK
 
