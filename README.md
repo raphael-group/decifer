@@ -138,6 +138,3 @@ DeCiFer has been developped and actively mantained by three previous Postdoctora
 - [Gryte Satas](linkedin.com/in/gryte-satas-23a74844) (most of input/output interfact and CF computations for single mutations), Postdoctoral Research Fellow at Memorial Sloan Kettering Cancer Center, NY, USA
 
 - [Mohammed El-Kebir](http://www.el-kebir.net/) (generation of state trees), Assistant Professor in the Computer Science department at the University of Illinois at Urbana-Champaign (UIUC), IL, USA.
-
-
-CHISEL's repository is actively maintained by [Simone Zaccaria](https://simozacca.github.io/), previously a Postdoctoral Research Associate at Princeton University in the research group of prof. Ben Raphael and currently group leader of the [Computational Cancer Genomics lab](https://www.ucl.ac.uk/cancer/zaccaria-lab) at the UCL Cancer Institute.
