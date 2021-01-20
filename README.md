@@ -131,11 +131,6 @@ DeCiFer is in active development, please report any issue or question as this co
 <a name="contacts"></a>
 ## Contacts
 
-CHISEL's repository is actively maintained by [Simone Zaccaria](https://simozacca.github.io/), previously a Postdoctoral Research Associate at Princeton University in the research group of prof. Ben Raphael and currently group leader of the [Computational Cancer Genomics lab](https://www.ucl.ac.uk/cancer/zaccaria-lab) at the UCL Cancer Institute.
-
-<a name="contacts"></a>
-## Contacts
-
 DeCiFer has been developped and actively mantained by three previously a Postdoctoral Research Associate at Princeton University in the research group of prof. Ben Raphael:
 
 - [Simone Zaccaria](https://simozacca.github.io/) (most of algorithmic core, likelihood computation, and Python implementation), group leader of the [Computational Cancer Genomics research group](https://www.ucl.ac.uk/cancer/zaccaria-lab) at UCL Cancer Institute, London, UK
