@@ -1,2 +1,118 @@
-# decifer
-DeCiFer is an algorithm that simultaneously selects mutation multiplicities and clustersSNVs by their corresponding descendant cell fractions (DCF).
+# DeCiFer
+
+DeCiFer is an algorithm that simultaneously selects mutation multiplicities and clusters SNVs by their corresponding descendant cell fractions (DCF), a statistic that quantifies the proportion of cells which acquired the SNV or whose ancestors acquired the SNV. DCF is related to the commonly used cancer cell fraction (CCF) but further accounts for SNVs which are lost due to deleterious somatic copy-number aberrations (CNAs), identifying clusters of SNVs which occur in the same phylogenetic branch of tumour evolution.
+
+The full description of the algorithm and its application on published cancer datasets are described in
+
+Gryte Satas†, Simone Zaccaria†, Mohammed El-Kebir† and Ben Raphael, 2021\
+† Joint First Authors
+
+The results of the related paper are available at:
+
+[DeCiFer data](https://github.com/raphael-group/decifer-data)
+
+This repository includes detailed instructions for installation and requirements, demos and tutorials of DeCiFer, a list of current issues, and contacts.
+This repository is currently in a preliminary release and improved versions are released frequently.
+During this stage, please keep checking for updates.
+
+## Contents ##
+
+1. [Algorithm](#algorithm)
+2. [Installation](#installation)
+3. [Usage](#usage)
+    - [Required data](#requireddata)
+    - [System requirements](#requirements)
+    - [Commands](#commands)
+    - [Demos](#demos)
+    - [Recommendations and quality control](#reccomendations)
+5. [Development](#development)
+    - [Recent and important updates](#updates)
+    - [Current issues](#currentissues)
+6. [Contacts](#contacts)
+
+<a name="algorithm"></a>
+## Algorithm
+
+<img src="doc/decifer.png" width="500">
+
+DeCiFer uses the Single Split Copy Number (SSCN) assumption and evolutionary constraints to enumerate potential genotype sets.
+This allows DeCiFer to exclude genotype sets with constant-mutation multiplicity (CMM) that are not biologically likely (red crosses) and include additional genotype sets (green star) that are.
+DeCiFer simultaneously selects a genotype set for each SNV and clusters all SNVs based on a probabilistic model of DCFs, which summarize both the prevalence of the SNV and its evolutionary history.
+
+<a name="installation"></a>
+## Installation
+
+DeCiFer is mostly written in Python 2.7 and has an optional component in C++. The recommended installation is through conda but we also provide custom instructions to install DeCiFer in any Python evironment.
+
+### Recommended installation
+
+The recommended installation requires `conda`, which can be easily and locally obtained by installing one of the two most common freely available distributions: [anaconda](https://www.anaconda.com/) or [miniconda](https://docs.conda.io/en/latest/miniconda.html). Thus, the following one-time commands are sufficient to fully install DeCiFer within a virtual conda envirnoment called `decifer` from this Git repo:
+
+```shell
+git clone https://github.com/raphael-group/decifer.git && cd decifer/
+conda create -c anaconda -c conda-forge -n decifer python=2.7 numpy scipy matplotlib-base pandas seaborn -y
+pip install .
+```
+
+After such one-time installation, DeCiFer can be executed in every new session after activating the `decifer` environment as follows:
+
+```shell
+conda activate decifer
+```
+
+### Custom installation
+
+DeCiFer can be installed with `pip` by the command `pip install .` in any Python2.7 envirnoment with the following packages or compatible versions:
+
+| Package | Tested version | Comments |
+|---------|----------------|----------|
+| [numpy](https://numpy.org/) | 1.16.1 | Efficient scientific computations |
+| [scipy](https://www.scipy.org/) | 1.2.1 | Efficient mathematical functions and methods |
+| [pandas](https://pandas.pydata.org/) | 0.20.1 | Dataframe management |
+| [matplotlib](https://matplotlib.org/) | 2.0.2 | Basic plotting utilities |
+| [seaborn](https://seaborn.pydata.org/) | 0.7.1 | Advanced plotting utilities |
+
+<a name="usage"></a>
+## Usage
+
+DeCiFer can be executed using the command `decifer`, whose [manual](man/man-decifer.md) describes the available parameters and argument options. See more details below.
+
+1. [Required input data](#requireddata)
+2. [Optional input data](#optionaldata)
+3. [System requirements](#requirements)
+4. [Demos](#demos)
+5. [Reccomendations and quality control](#reccomendations)
+
+<a name="requireddata"></a>
+### Required input data
+
+DeCiFer requires two input data:
+
+1. Input mutations with nucleotide counts and related copy numbers in a tab-separated file (TSV) with three header lines ((1) The first specifies the number of mutations; (2) The second specifies the number of samples; and (3) The third is equal to: `#sample_index	sample_label	character_index	character_label	ref	var`) and where every other row has the following values for every mutation in every sample:
+
+| Name | Description | Mandatory |
+|------|-------------|-----------|
+| Sample index | a unique number identifying the sample | Yes |
+| Sample label | a unique name for the sample | Yes |
+| Mutation index | a unique number identifying the mutation | Yes |
+| Mutation label | a unique name identifying the mutation | Yes |
+| REF | Number of reads with reference allele for the mutation | Yes |
+| ALT | Number of reads with alternate allele for the mutation | Yes |
+| Copy numbers and proportions | Tab-separated `A  B  U` where `A,B` are the inferred allele-specific copy numbers for the segment harboring the mutationa and `U` is the corresponding proportion of cells (normal and tumour) with those copy numbers | Yes |
+| Additional copy numbers | An arbitrary number of fields with the same format as of `Copy numbers and proportions` describing the proportions of cells with different copy numbers. Note that all proporions should always sum up to 1. | No |
+
+2. Input tumour purity in a two-column tab-separated file where every row `SAMPLE-INDEX   TUMOUR-PURITY` defines the tumour purity `TUMOUR-PURITY` of a sample with index `SAMPLE-INDEX`.
+
+<a name="optionaldata"></a>
+### Optional input data
+
+DeCiFer can use the following additional and optional input data:
+
+1. Precision parameters for fitting beta-binomial distributions when clustering mutations. Specifically, this is a two-column tab-separated file where every row `SAMPLE-INDEX   PRECISION` defines the precision parameter `PRECISION` of the beta binomial distribution of a sample with index `SAMPLE-INDEX`. When this optional file is not provided, DeCiFer will fit a binomial distribution instead. This file can be estimated by using the command `decifer_fit`, whose usage is described in the corresponding [manual](man/man-decifer-fit.md).
+
+2. File containing the set of all possible state trees evaluated by DeCiFer. State trees have been generated for the set of most common copy numbers, however a dataset might have a combination of copy numbers which has not been included. In this case, the user can use the command `decifer_statetrees` to generate all the state trees needed for its dataset, following the instructions in the corresponding [manual](man/man-decifer-manual.md).
+
+<a name="requirements"></a>
+### System requirements
+
+DeCiFer is highly parallelized in order to make efficient the extensive computations needed for clustering under a probabilistic model thousands of mutations across multiple tumour samples from the same patient. We recommend executing DeCiFer on multi-processing computing machines as the running time will scale down nearly proportionally with the number of parallel jobs, which can be specified with the argument `-j`. If the parameter is not specified, then DeCiFer will attempt to use all available CPUs; however, when using a computing cluster, we strongly recommend the user to always specifies `-j` in order to match the number of requested CPUs and avoid computing competition. Finally, note that also required memory also scales with the number of parallel processes; however in all previous tests on thousands of mutations with high number of parallel processses, DeCiFer never required more than 80GB of RAM. Please lower `-j` in case of exceeding memory.
