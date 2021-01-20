@@ -24,11 +24,8 @@ During this stage, please keep checking for updates.
     - [System requirements](#requirements)
     - [Commands](#commands)
     - [Demos](#demos)
-    - [Recommendations and quality control](#reccomendations)
-5. [Development](#development)
-    - [Recent and important updates](#updates)
-    - [Current issues](#currentissues)
-6. [Contacts](#contacts)
+4. [Development](#development)
+5. [Contacts](#contacts)
 
 <a name="algorithm"></a>
 ## Algorithm
@@ -116,3 +113,36 @@ DeCiFer can use the following additional and optional input data:
 ### System requirements
 
 DeCiFer is highly parallelized in order to make efficient the extensive computations needed for clustering under a probabilistic model thousands of mutations across multiple tumour samples from the same patient. We recommend executing DeCiFer on multi-processing computing machines as the running time will scale down nearly proportionally with the number of parallel jobs, which can be specified with the argument `-j`. If the parameter is not specified, then DeCiFer will attempt to use all available CPUs; however, when using a computing cluster, we strongly recommend the user to always specifies `-j` in order to match the number of requested CPUs and avoid computing competition. Finally, note that also required memory also scales with the number of parallel processes; however in all previous tests on thousands of mutations with high number of parallel processses, DeCiFer never required more than 80GB of RAM. Please lower `-j` in case of exceeding memory.
+
+<a name="demos"></a>
+### Demos
+
+Each demo is an exemplary and guided execution of a DeCiFer.Each demo is simultaneously a guided description of the entire example and a BASH script which can be directly executed to run the complete demo from this repository. As such, the user can both read the guided description as a web page and run the same script to execute the demo. At this time the following demos are available (more demos will be available soon):
+
+| Demo | Description |
+|------|-------------|
+| [A12](demos/demo-A12.sh) | Demo of DeCiFer basic command on prostate cancer patient A12 |
+
+<a name="development"></a>
+## Development
+
+DeCiFer is in active development, please report any issue or question as this could help the development and improvement of DeCiFer. Known issues with current version are reported here below.
+
+<a name="contacts"></a>
+## Contacts
+
+CHISEL's repository is actively maintained by [Simone Zaccaria](https://simozacca.github.io/), previously a Postdoctoral Research Associate at Princeton University in the research group of prof. Ben Raphael and currently group leader of the [Computational Cancer Genomics lab](https://www.ucl.ac.uk/cancer/zaccaria-lab) at the UCL Cancer Institute.
+
+<a name="contacts"></a>
+## Contacts
+
+DeCiFer has been developped and actively mantained by three previously a Postdoctoral Research Associate at Princeton University in the research group of prof. Ben Raphael:
+
+- [Simone Zaccaria](https://simozacca.github.io/) (most of algorithmic core, likelihood computation, and Python implementation), group leader of the [Computational Cancer Genomics research group](https://www.ucl.ac.uk/cancer/zaccaria-lab) at UCL Cancer Institute, London, UK
+
+- [Gryte Satas](linkedin.com/in/gryte-satas-23a74844) (most of input/output interfact and CF computations for single mutations), Postdoctoral Research Fellow at Memorial Sloan Kettering Cancer Center, NY, USA
+
+- [Mohammed El-Kebir](http://www.el-kebir.net/) (generation of state trees), Assistant Professor in the Computer Science department at the University of Illinois at Urbana-Champaign (UIUC), IL, USA.
+
+
+CHISEL's repository is actively maintained by [Simone Zaccaria](https://simozacca.github.io/), previously a Postdoctoral Research Associate at Princeton University in the research group of prof. Ben Raphael and currently group leader of the [Computational Cancer Genomics lab](https://www.ucl.ac.uk/cancer/zaccaria-lab) at the UCL Cancer Institute.
