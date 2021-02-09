@@ -4,8 +4,9 @@ DeCiFer is an algorithm that simultaneously selects mutation multiplicities and 
 
 The full description of the algorithm and its application on published cancer datasets are described in
 
-Gryte Satas†, Simone Zaccaria†, Mohammed El-Kebir† and Ben Raphael, 2021\
+Gryte Satas†, Simone Zaccaria†, Mohammed El-Kebir†,\* and Ben Raphael\*, 2021\
 † Joint First Authors
+* Corresponding Authors
 
 The results of the related paper are available at:
 
@@ -68,6 +69,29 @@ DeCiFer can be installed with `pip` by the command `pip install .` in any Python
 | [pandas](https://pandas.pydata.org/) | 0.20.1 | Dataframe management |
 | [matplotlib](https://matplotlib.org/) | 2.0.2 | Basic plotting utilities |
 | [seaborn](https://seaborn.pydata.org/) | 0.7.1 | Advanced plotting utilities |
+
+
+### Installation of C++ component
+
+DeCiFer includes C++ code to enumerate state/genotype trees. The
+dependencies for this code are as follows.
+
+| Package | Tested version | Comments |
+|---------|----------------|----------|
+| [cmake](https://cmake.org/) | >= 2.8 | Build environment |
+| [lemon](https://lemon.cs.elte.hu/trac/lemon) | 1.3.1 | C++ graph library |
+| [boost](https://www.boost.org/) | >= 1.69.0 | C++ library for scientific computing |
+
+To build this code, enter the following commands from the root of the
+repository:
+
+```shell
+mkdir build
+cd build
+# OPTIONAL: specify lemon and/or Boost paths if not detected automatically.
+cmake ../src/decifer/cpp/ -LIBLEMON_ROOT=/usr/local/ -DBOOST_ROOT=/scratch/software/boost_1_69_0/
+make
+```
 
 <a name="usage"></a>
 ## Usage
