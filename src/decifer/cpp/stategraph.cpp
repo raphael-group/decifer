@@ -37,8 +37,8 @@ const StateGraph::StateEdgeSetSet& StateGraph::getStateTrees(const IntPairSet& L
   
 StateGraph::StateGraph(int max_x,
                        int max_y)
-  : _maxCopyNumberX(max_x)
-  , _maxCopyNumberY(max_y)
+  : _maxCopyNumberX(std::max(max_x, 1))
+  , _maxCopyNumberY(std::max(max_y, 1))
   , _G()
   , _x(_G, 0)
   , _y(_G, 0)

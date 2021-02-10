@@ -37,10 +37,17 @@ std::vector<IntPairSet> parseCopyStateInput(std::istream& in)
         throw std::runtime_error(getLineNumber() + "Error: Invalid copy-number state '" + str + "'");
       }
       
-      int x = boost::lexical_cast<int>(ss[0]);
-      int y = boost::lexical_cast<int>(ss[1]);
+      try
+      {
+        int x = boost::lexical_cast<int>(ss[0]);
+        int y = boost::lexical_cast<int>(ss[1]);
       
       L.insert(IntPair(x, y));
+      }
+      catch (boost::exception& e)
+      {
+        throw std::runtime_error(getLineNumber() + "Error: Invalid copy-number state '" + str + "'");
+      }
     }
     res.push_back(L);
   }
@@ -88,13 +95,13 @@ bool next(const int maxXY,
 
 int main(int argc, char** argv)
 {
-  int maxXY = 3;
+  int maxXY = 2;
   int maxCN = 2;
   std::string inputStateTreeFilename;
   std::string outputStateTreeFilename;
   
   lemon::ArgParser ap(argc, argv);
-  ap.refOption("maxXY", "Maximum number of maternal/paternal copies (default: 3)", maxXY, false)
+  ap.refOption("maxXY", "Maximum number of maternal/paternal copies (default: 2)", maxXY, false)
     .refOption("maxCN", "Maximum number of copy number events (default: 2)", maxCN, false)
     .refOption("S", "Input state tree file", inputStateTreeFilename, false)
     .refOption("SS", "Output state tree file", outputStateTreeFilename, false);
@@ -110,7 +117,15 @@ int main(int argc, char** argv)
     }
     else
     {
-      StateGraph::readStateTrees(inS);
+      try
+      {
+        StateGraph::readStateTrees(inS);
+      }
+      catch (std::runtime_error& e)
+      {
+        std::cerr << e.what() << std::endl;
+        return 1;
+      }
     }
   }
   
@@ -118,41 +133,6 @@ int main(int argc, char** argv)
   {
     for (const std::string& filename : ap.files())
     {
-//      std::ifstream inR(filename.c_str());
-//      if (!inR.good())
-//      {
-//        std::cerr << "Error: could not open '" << filename << "' for reading" << std::endl;
-//        return 1;
-//      }
-//
-//      ReadMatrix R;
-//      try
-//      {
-//        inR >> R;
-//      }
-//      catch (std::runtime_error& e)
-//      {
-//        std::cerr << e.what() << std::endl;
-//        return 1;
-//      }
-//      inR.close();
-//
-//      Solver solver(R, 1, 1, -1);
-//      solver.init();
-//
-//      if (!outputStateTreeFilename.empty())
-//      {
-//        std::ofstream outS(outputStateTreeFilename.c_str());
-//        StateGraph::writeStateTrees(outS);
-//        outS.close();
-//      }
-//      else
-//      {
-//        std::ofstream out(outputStateTreeFilename.c_str());
-//        StateGraph::writeStateTrees(out);
-//        out.close();
-//      }
-      
       std::ifstream in(filename.c_str());
       if (!in.good())
       {
@@ -160,7 +140,16 @@ int main(int argc, char** argv)
         return 1;
       }
       
-      auto cnStates = parseCopyStateInput(in);
+      std::vector<IntPairSet> cnStates;
+      try
+      {
+        cnStates = parseCopyStateInput(in);
+      }
+      catch (std::runtime_error& e)
+      {
+        std::cerr << e.what() << std::endl;
+        return 1;
+      }
       in.close();
       
       for (const IntPairSet& L : cnStates)
