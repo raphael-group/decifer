@@ -5,6 +5,7 @@ author: gsatas
 date: 2020-05-04
 """
 from config import *
+import warnings
 
 class mutation:
     ''' A mutation has a set of configurations, and read counts'''
@@ -46,8 +47,8 @@ def get_edge_list(state_tree):
     for i in range(0, len(state_tree),2):
         edge_list.append((state_tree[i], state_tree[i+1]))
     return edge_list
-    
-    
+
+
 
 
 def get_desc_set(state_tree, vertex):
@@ -76,8 +77,9 @@ def get_configs(state_trees, Cs, mus, dcf_mode): #c1,mu1, c2 = None, mu2 = None)
 
     else:
 
-        #TODO: Update this so the order of CN states doesn't matter
-        state_trees = state_trees[tuple(set(Cs))]
+
+	state_trees = state_trees[tuple(set(Cs))]
+
 
         configurations = []
         for state_tree_full in state_trees:
@@ -162,8 +164,11 @@ def create_mutations(mutation_data, state_trees, dcf_mode = True):
             try:
                 configs = get_configs(state_trees, Cs, mus, dcf_mode)
             except KeyError:
-                print "Key Error"
-                raise
+                
+		msg="Skipping mutation {}: State tree file does not contain state trees for the set of copy-number states that affect mutation {}.\n To generate state trees, see documentation for `generatestatetrees`, included in the C++ component of DeCiFer.".format(idx, idx)
+                warnings.warn(msg)
+                continue
+
             mut = mutation(configs, [a,], [d,], label, index)
             mutations[index] = mut
 
