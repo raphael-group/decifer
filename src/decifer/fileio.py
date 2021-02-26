@@ -6,31 +6,25 @@ date: 2020-05-04
 """
 
 from new_coordinate_ascent import *
-
+import pandas as pd
 
 def read_in_state_trees(filename):
     with open(filename) as f:
         lines = f.readlines()
         state_trees = {}
-
         i = 1
         while i < len(lines):
             states = list(set(tuple(map(int, l.split(','))) for l in lines[i].strip().split(' ')))
             count = int(lines[i+1].strip().split(' ')[0])
             sts = []
-
             for j in range(1, count+1):
                 state_tree = [tuple(map(int, l.split(','))) for l in lines[i+1+j].strip().split(' ')]
-
                 sts.append(state_tree)
-
             state_trees[tuple(states)] = sts
             i = i + 1 + count + 1
-
     return state_trees
 
 
-import pandas as pd
 def read_in_test_file(filename):
 
     with open(filename) as f:
@@ -52,7 +46,7 @@ def read_in_test_file(filename):
 def write_results(prefix, C, mut_cluster_assignments, mut_config_assignments, mutations, purity, bb):
 
     with open('{}.output'.format(prefix), 'w') as out:
-        out.write('mut_index\t'+"\t".join(['VAR_{}'.format(i) for i in range(len(C))]+['TOT_{}'.format(i) for i in range(len(C))])+'\tcluster\t'+"\t".join(['clust_CF{}'.format(i) for i in range(len(C))] + ['leftb_CF{}'.format(i)  for i in range(len(C))] + ['rightb_CF{}'.format(i)  for i in range(len(C))] + ['est_VAF{}'.format(i)  for i in range(len(C))] + ['est_CF{}'.format(i)  for i in range(len(C))] + ['cmm_CF{}'.format(i)  for i in range(len(C))]) + '\tExplained\tLHs' + '\n')
+        out.write('mut_index\t'+"\t".join(['VAR_{}'.format(i) for i in range(len(C))]+['TOT_{}'.format(i) for i in range(len(C))])+'\tcluster\tstate_tree\t'+"\t".join(['clust_CF{}'.format(i) for i in range(len(C))] + ['leftb_CF{}'.format(i)  for i in range(len(C))] + ['rightb_CF{}'.format(i)  for i in range(len(C))] + ['est_VAF{}'.format(i)  for i in range(len(C))] + ['est_CF{}'.format(i)  for i in range(len(C))] + ['cmm_CF{}'.format(i)  for i in range(len(C))]) + '\tExplained\tLHs' + '\n')
         for mut, clust in zip(mutations, mut_cluster_assignments):
             label = mut.label
             CF = [c[clust] for c in C]
@@ -62,6 +56,7 @@ def write_results(prefix, C, mut_cluster_assignments, mut_config_assignments, mu
             TOT = [v for v in tot]
             vaf = [float(v)/t if t > 0 else 0.5 for v,t in zip(var, tot)]
             config = mut.assigned_config
+            tree = ';'.join(map(lambda p : '({},{},{})'.format(*p), mut.assigned_tree()))
             leftbC = [config.cf_bounds(i)[0] for i in range(len(vaf))]
             rightbC = [config.cf_bounds(i)[1] for i in range(len(vaf))]
             estC = [config.v_to_cf(vaf[i], i, truncate = False) for i in range(len(vaf))]
@@ -82,15 +77,15 @@ def write_results(prefix, C, mut_cluster_assignments, mut_config_assignments, mu
             explained = ';'.join(map(str, explained))
             lhs = ';'.join(map(str, lhs))
             
-            out.write('\t'.join(map(str, [label] + VAR + TOT + [clust] + CF + leftbC + rightbC + vaf + estC + cmmC + [explained, lhs]))+'\n')
+            out.write('\t'.join(map(str, [label] + VAR + TOT + [clust] + [tree] + CF + leftbC + rightbC + vaf + estC + cmmC + [explained, lhs]))+'\n')
 
     with open('{}.C'.format(prefix), 'w') as out:
         for c in C:
             out.write('\t'.join(map(str, c)) + '\n')
     with open('{}.cluster_assignments'.format(prefix), 'w') as out:
         out.write('\n'.join(map(str,mut_cluster_assignments)))
-    with open('{}.config_assignments'.format(prefix), 'w') as out:
-        out.write('\n'.join(map(str,mut_config_assignments)))
+#    with open('{}.config_assignments'.format(prefix), 'w') as out:
+#        out.write('\n'.join(map(str,mut_config_assignments)))
 
 def write_results_decifer_format(mutations, mut_cluster_assignments, prefix, num_clusters, num_samples, C):
     #SNV	cluster0	cluster1	cluster2	cluster	dcf0	dcf1	dcf2
