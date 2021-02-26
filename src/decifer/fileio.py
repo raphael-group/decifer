@@ -56,7 +56,7 @@ def write_results(prefix, C, mut_cluster_assignments, mut_config_assignments, mu
             TOT = [v for v in tot]
             vaf = [float(v)/t if t > 0 else 0.5 for v,t in zip(var, tot)]
             config = mut.assigned_config
-            tree = ';'.join(map(lambda p : '({},{},{})'.format(*p), mut.assigned_tree()))
+            tree = ';'.join(map(lambda p : '({},{},{})->({},{},{})'.format(*(p[0]+p[1])), zip(mut.assigned_tree()[:-1], mut.assigned_tree()[1:])))
             leftbC = [config.cf_bounds(i)[0] for i in range(len(vaf))]
             rightbC = [config.cf_bounds(i)[1] for i in range(len(vaf))]
             estC = [config.v_to_cf(vaf[i], i, truncate = False) for i in range(len(vaf))]

@@ -46,9 +46,6 @@ class mutation:
         return c
 
     def assigned_tree(self):
-        if len(self.trees) == 1:
-            return self.trees
-        else:
             for c, t in zip(self.configs, self.trees):
                 if c == self.assigned_config:
                     return t
@@ -77,7 +74,7 @@ def get_configs(_state_trees, Cs, mus, dcf_mode): #c1,mu1, c2 = None, mu2 = None
     if len(Cs) == 1:
         # Config is simple
         configuration = config(mut_state=Cs[0], other_states=[], cn_props={Cs[0]:[mus[0],]}, desc_set = [], dcf_mode=dcf_mode)
-        return [configuration,], [(1, 1, 1),]
+        return [configuration,], [[(1, 1, 0), (1, 1, 1)],]
     else:
 	state_trees = _state_trees[tuple(set(Cs))]
         configurations = []
