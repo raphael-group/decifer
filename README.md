@@ -5,8 +5,8 @@ DeCiFer is an algorithm that simultaneously selects mutation multiplicities and 
 The full description of the algorithm and its application on published cancer datasets are described in
 
 [Gryte Satas†, Simone Zaccaria†, Mohammed El-Kebir†,\* and Ben Raphael\*, 2021](https://doi.org/10.1101/2021.02.27.429196)\
-† Joint First Authors
-* Corresponding Authors
+† Joint First Authors\
+\* Corresponding Authors
 
 The results of the related paper are available at:
 
