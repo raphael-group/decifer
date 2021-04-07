@@ -46,7 +46,7 @@ DeCiFer is mostly written in Python 2.7 and has an optional component in C++. Th
 
 ### Automatic installation 
 
-The recommended installation is through [bioconda](https://bioconda.github.io/recipes/decifer/README.html) and requires `conda`, which can be easily and locally obtained by installing one of the two most common freely available distributions: [anaconda](https://www.anaconda.com/) or [miniconda](https://docs.conda.io/en/latest/miniconda.html). Please make sure to have executed the [required channel setup](https://bioconda.github.io/user/install.html#set-up-channels) for bioconda. Thus, the following one-time commands are sufficient to fully install DeCiFer within a virtual conda envirnoment called `decifer`:
+The recommended installation is through [bioconda](https://bioconda.github.io/recipes/decifer/README.html) and requires `conda`, which can be easily and locally obtained by installing one of the two most common freely available distributions: [anaconda](https://www.anaconda.com/) or [miniconda](https://docs.conda.io/en/latest/miniconda.html). Please make sure to have executed the [required channel setup](https://bioconda.github.io/user/install.html#set-up-channels) for bioconda. Thus, the following one-time one-line command is sufficient to fully install DeCiFer within a virtual conda envirnoment called `decifer`:
 
 ```shell
 conda install -n decifer decifer -y
