@@ -158,8 +158,8 @@ def run_coordinator_iterative(mutations, num_samples, purity, args, record):
         print '\t'.join(map(str, [k, objs[k], elbow[k] if k < maxk else 'NaN', selected==k]))
 
     C, bmut, clus, conf, objs = map(lambda D : shared[D][best[selected]], ['C', 'bmut', 'clus', 'conf', 'objs'])
-    write_results(prefix, C, clus, conf, bmut, purity, args['betabinomial'])
-    write_results_decifer_format(bmut, clus, prefix, selected, num_samples, C)
+    write_results(prefix, C, clus, conf, bmut, purity, args['betabinomial'], 'CCF' if args['ccf'] else 'DCF')
+    #write_results_decifer_format(bmut, clus, prefix, selected, num_samples, C)
 
 
 def run_coordinator_binary(mutations, num_samples, purity, args, record):
@@ -189,8 +189,8 @@ def run_coordinator_binary(mutations, num_samples, purity, args, record):
     evaluate(R)
     selected = L if float(results[L][-1] - results[MAXR][-1]) / abs(results[MAXR][-1]) <= ubleft else R
     C, bmut, clus, conf, objs = results[selected]
-    write_results(prefix, C, clus, conf, bmut, purity, args['betabinomial'])
-    write_results_decifer_format(bmut, clus, prefix, selected, num_samples, C)
+    write_results(prefix, C, clus, conf, bmut, purity, args['betabinomial'], 'CCF' if args['ccf'] else 'DCF')
+    #write_results_decifer_format(bmut, clus, prefix, selected, num_samples, C)
 
 
 def run(mutations, num_samples, K, maxit, prefix, purity, restarts, ubleft, J, record, betabinomial):
