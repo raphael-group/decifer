@@ -21,10 +21,12 @@ During this stage, please keep checking for updates.
 1. [Algorithm](#algorithm)
 2. [Installation](#installation)
 3. [Usage](#usage)
-    - [Required data](#requireddata)
+    - [Required input data](#requireddata)
+    - [Optional input data](#optionaldata)
+    - [Output](#output)
     - [System requirements](#requirements)
-    - [Commands](#commands)
     - [Demos](#demos)
+    - [Reccomendations and quality control](#reccomendations)
 4. [Development](#development)
 5. [Contacts](#contacts)
 
@@ -100,9 +102,10 @@ DeCiFer can be executed using the command `decifer`, whose [manual](man/man-deci
 
 1. [Required input data](#requireddata)
 2. [Optional input data](#optionaldata)
-3. [System requirements](#requirements)
-4. [Demos](#demos)
-5. [Reccomendations and quality control](#reccomendations)
+3. [Output](#output)
+4. [System requirements](#requirements)
+5. [Demos](#demos)
+6. [Reccomendations and quality control](#reccomendations)
 
 <a name="requireddata"></a>
 ### Required input data
@@ -133,6 +136,26 @@ DeCiFer can use the following additional and optional input data:
 
 2. File containing the set of all possible state trees evaluated by DeCiFer. State trees have been generated for the set of most common copy numbers, however a dataset might have a combination of copy numbers which has not been included. In this case, the user can use the command `decifer_statetrees` to generate all the state trees needed for its dataset, following the instructions in the corresponding [manual](man/man-decifer-manual.md).
 
+<a name="output"></a>
+### Output
+
+DeCiFer's output corresponds to a single TSV file encoding a dataframe where every row corresponds to an input mutation and with the following fields:
+
+| Name | Description |
+|------|-------------|
+| `mut_index` | Unique identified for a mutation |
+| `VAR_{SAMPLE}` | Variant sequencing read count of the mutation for every sample with index `{SAMPLE}` |
+| `TOT_{SAMPLE}` | Total sequencing read count of the mutation for every sample with index `{SAMPLE}` |
+| `VAR_{SAMPLE}` | Variant sequencing read count of the mutation for every sample with index `{SAMPLE}` |
+| `cluster` | Unique identifier of the inferred mutation cluster |
+| `state_tree` | Inferred state tree defined as a `->`-separated edge list of genotypes |
+| `cluster` | Unique identifier of the inferred mutation cluster |
+| `true_cluster_DCF{SAMPLE}` | Inferred true cluster DCF of the mutation in every sample with index `{SAMPLE}`; when execute in CCF-mode, DCF will be CCF instead |
+| `point_estimate_DCF{SAMPLE}` | Point estimate of the mutation DCF in every sample with index `{SAMPLE}`; when execute in CCF-mode, DCF will be CCF instead |
+| `cmm_CCF{SAMPLE}` | Inferred CCF of the mutation under the previous CMM assumption in every sample with index `{SAMPLE}` |
+| `Explained` | `;`-separated list of all the clusters to which the mutation could be assigned |
+| `LHs` | `;`-separated list of the negative-log likelihoods of assigned the mutation to all clusters in `Explained` |
+
 <a name="requirements"></a>
 ### System requirements
 
@@ -146,6 +169,13 @@ Each demo is an exemplary and guided execution of a DeCiFer.Each demo is simulta
 | Demo | Description |
 |------|-------------|
 | [A12](demos/demo-A12.sh) | Demo of DeCiFer basic command on prostate cancer patient A12 |
+
+<a name="reccomendations"></a>
+### Reccomendations and quality control
+
+- We reccomend to initially select a reasonably high maximum number of clusters with option `-K` and then further increase it if the selected best number of clusters is close to the maximum limit.
+- DeCiFer outputs the decreasing objective function which is used to select the number of clusters based on the Elbow criterion; if the function is still substantially decreasing near the selecte maximum number of clusters please try to further increase this value.
+- You can adapt the sensitivity of the Elbow criterion by adjustiv the corresponding parameter.
 
 <a name="development"></a>
 ## Development
