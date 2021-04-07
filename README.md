@@ -44,20 +44,28 @@ DeCiFer simultaneously selects a genotype set for each SNV and clusters all SNVs
 
 DeCiFer is mostly written in Python 2.7 and has an optional component in C++. The recommended installation is through conda but we also provide custom instructions to install DeCiFer in any Python evironment.
 
-### Recommended installation
+### Automatic installation 
 
-The recommended installation requires `conda`, which can be easily and locally obtained by installing one of the two most common freely available distributions: [anaconda](https://www.anaconda.com/) or [miniconda](https://docs.conda.io/en/latest/miniconda.html). Thus, the following one-time commands are sufficient to fully install DeCiFer within a virtual conda envirnoment called `decifer` from this Git repo:
+The recommended installation is through [bioconda](https://bioconda.github.io/recipes/decifer/README.html) and requires `conda`, which can be easily and locally obtained by installing one of the two most common freely available distributions: [anaconda](https://www.anaconda.com/) or [miniconda](https://docs.conda.io/en/latest/miniconda.html). Please make sure to have executed the [required channel setup](https://bioconda.github.io/user/install.html#set-up-channels) for bioconda. Thus, the following one-time commands are sufficient to fully install DeCiFer within a virtual conda envirnoment called `decifer`:
 
 ```shell
-git clone https://github.com/raphael-group/decifer.git && cd decifer/
-conda create -c anaconda -c conda-forge -n decifer python=2.7 numpy scipy matplotlib-base pandas seaborn -y
-pip install .
+conda install -n decifer decifer -y
 ```
 
 After such one-time installation, DeCiFer can be executed in every new session after activating the `decifer` environment as follows:
 
 ```shell
 conda activate decifer
+```
+
+### Manual installation
+
+DeCiFer can also be installed in a conda envirnoment directly from this repo. Thus, the following one-time commands are sufficient to fully install DeCiFer within a virtual conda envirnoment called `decifer` from this Git repo:
+
+```shell
+git clone https://github.com/raphael-group/decifer.git && cd decifer/
+conda create -c anaconda -c conda-forge -n decifer python=2.7 numpy scipy matplotlib-base pandas seaborn -y
+pip install .
 ```
 
 ### Custom installation
