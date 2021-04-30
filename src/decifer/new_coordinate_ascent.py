@@ -14,6 +14,7 @@ from scipy.stats import beta
 from scipy.special import betaln
 from scipy.special import gammaln
 from scipy.optimize import minimize_scalar
+from scipy.optimize import minimize
 
 from fileio import *
 from mutation import *
@@ -89,9 +90,10 @@ def optimize_assignments(mutations, C, num_samples, num_clusters, bb, last=False
 
 
 def optimize_cluster_centers(mutations, num_samples, C_old, V_old, num_clusters, bb, purity):
-    vmin = (lambda muti, sam: max( max( [m.assigned_config.cf_bounds(sam)[0] for m in muti] ) - 0.05), 0.0)
-    vmax = (lambda muti, sam: min( min( [m.assigned_config.cf_bounds(sam)[1] for m in muti] ) + 0.05), 1.0)
+    vmin = (lambda muti, sam: max( [max( [m.assigned_config.cf_bounds(sam)[0] for m in muti] ) - 0.05, 0.0]))
+    vmax = (lambda muti, sam: min( [min( [m.assigned_config.cf_bounds(sam)[1] for m in muti] ) + 0.05, 1.0]))
     minim = (lambda muti, sam : minimize_scalar(objective, args=(muti, sam, bb), method='bounded', bounds=[vmin(muti,sam),vmax(muti,sam)], options={'xatol' : TOLERANCE}).x)
+    #minim = (lambda muti, sam : minimize(objective, args=(muti, sam, bb), method='CG', x0=(vmin(muti,sam)+vmax(muti,sam)/2.0), bounds=((vmin(muti,sam),vmax(muti,sam)),), tol=TOLERANCE).x)
     #minim = (lambda muti, sam : minimize_scalar(objective, args=(muti, sam, bb), method='bounded', bounds=[0,1], options={'xatol' : TOLERANCE}).x)
     #minim = (lambda muti, sam : minimize_scalar(objective, args=(muti, sam, bb), method='golden', bounds=[0,1], options={'xatol' : TOLERANCE}).x)
     getmi = (lambda muti, sam, x : (x, objective(x, muti, sam, bb) if len(muti) > 0 else 0.0))
