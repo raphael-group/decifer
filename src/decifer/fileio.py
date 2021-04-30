@@ -43,12 +43,13 @@ def read_in_test_file(filename):
         df.columns = header
     return df
 
-def write_results(prefix, C, mut_cluster_assignments, mut_config_assignments, mutations, purity, bb, kind):
+def write_results(prefix, C, CIs, mut_cluster_assignments, mut_config_assignments, mutations, purity, bb, kind):
     with open('{}.output.tsv'.format(prefix), 'w') as out:
         out.write('mut_index\t'+"\t".join(['VAR_{}'.format(i) for i in range(len(C))]+['TOT_{}'.format(i) for i in range(len(C))])+'\tcluster\tstate_tree\t'+"\t".join(['true_cluster_{}{}'.format(kind, i) for i in range(len(C))] + ['point_estimate_{}{}'.format(kind, i)  for i in range(len(C))] + ['cmm_CCF{}'.format(i) for i in range(len(C))]) + '\tExplained\tLHs' + '\n')
         for mut, clust in zip(mutations, mut_cluster_assignments):
             label = mut.label
-            CF = [c[clust] for c in C]
+            #CF = [c[clust] for c in C]
+            CF = [ ";".join([str(C[i][clust]), str(CIs[i][clust]).replace(" ", "")]) for i in range(len(C))]
             var = mut.a
             VAR = [v for v in var]
             tot = mut.d

@@ -18,6 +18,7 @@ from pkg_resources import resource_filename
 from copy import deepcopy
 from multiprocessing import Lock, Value, Pool, Manager
 import numpy as np
+import scipy.integrate as integrate
 
 from fileio import *
 from new_coordinate_ascent import *
@@ -158,9 +159,96 @@ def run_coordinator_iterative(mutations, num_samples, purity, args, record):
         print '\t'.join(map(str, [k, objs[k], elbow[k] if k < maxk else 'NaN', selected==k]))
 
     C, bmut, clus, conf, objs = map(lambda D : shared[D][best[selected]], ['C', 'bmut', 'clus', 'conf', 'objs'])
-    write_results(prefix, C, clus, conf, bmut, purity, args['betabinomial'], 'CCF' if args['ccf'] else 'DCF')
+    
+    # C is list of lists; rows are samples, columns are cluster IDs, values are CCFs
+    #CIs = [[()]*len(C[i]) for i in range(len(C))]
+    """
+    CIs = compute_CIs(set(clus), bmut, num_samples, args['betabinomial'], C)
+    print_PDF(set(clus), bmut, num_samples, args['betabinomial'], C)
+    print_feasibleVAFs(set(clus), bmut, num_samples, args['betabinomial'], C)
+
+    for i,r in enumerate(C):
+        for j,c in enumerate(C[i]):
+            print C[i][j], CIs[i][j]
+    """
+    write_results(prefix, C, CIs, clus, conf, bmut, purity, args['betabinomial'], 'CCF' if args['ccf'] else 'DCF')
     #write_results_decifer_format(bmut, clus, prefix, selected, num_samples, C)
 
+def print_feasibleVAFs(cluster_ids, muts, num_samples, bb, C):
+    with open("feasibleVAFs.txt", 'w') as f:
+        for i in cluster_ids:
+            mut = filter(lambda m : m.assigned_cluster == i, muts) 
+            for s in range(0,num_samples):
+                lowers = [m.assigned_config.cf_bounds(s)[0] for m in mut]
+                uppers = [m.assigned_config.cf_bounds(s)[1] for m in mut]
+                f.write(" ".join(list(map(str, [i, s, max(lowers), min(uppers)]))))
+                f.write("\n")
+
+def print_PDF(cluster_ids, muts, num_samples, bb, C):
+    with open("pdfs.txt", 'w') as f:
+        for i in cluster_ids:
+            mut = filter(lambda m : m.assigned_cluster == i, muts) 
+            for s in range(0,num_samples):
+                max_dcf = C[s][i] # dcf value that maximizes posterior for this sample and cluster ID
+                delta = (-1*objective(max_dcf, mut, s, bb))-2
+                prob = (lambda x: math.exp(-1*(x+delta))) # convert neg log to probability
+                l = []
+                for j in np.linspace(0, 1, 10000):
+                   l.append(prob(objective(j, mut, s, bb)))
+                total = np.sum(l)
+                l = [x/total for x in l]
+                f.write(" ".join(list(map(str, [i,s] + l))))
+                f.write("\n")
+
+
+def compute_CIs(cluster_ids, muts, num_samples, bb, C):
+    CIs = [[()]*len(C[i]) for i in range(len(C))] # list of lists to store CIs, same structure as C
+    with open("max_dcfs.txt", 'w') as f:
+        for i in cluster_ids:
+            mut = filter(lambda m : m.assigned_cluster == i, muts) 
+            for s in range(0,num_samples):
+                max_dcf = C[s][i] # dcf value that maximizes posterior for this sample and cluster ID
+                delta = (-1*objective(max_dcf, mut, s, bb))-2
+                #prob = (lambda x: math.exp(-1*x)) # convert neg log to probability
+                prob = (lambda x: math.exp(-1*(x+delta))) # convert neg log to probability
+                lowerb = max(max([m.assigned_config.cf_bounds(s)[0] for m in mut]) - 0.05, 0.0) # max lower bound, 0 as limit
+                upperb = min(min([m.assigned_config.cf_bounds(s)[1] for m in mut]) + 0.05, 1.0) # min upper bound, 1 as limit
+                # integrate unormalized dcf/ccf PDF from 0 -> x; note quad func takes it's own lambda func and return tuple of (area,error)
+                """
+                area0x = (lambda x: integrate.quad(lambda dcf: prob(objective(dcf, mut, s, bb)), 0.0, x)) 
+                Z = area0x(1)[0] # compute normalization constant to get probabilities
+                """
+                area0x = (lambda x: integrate.quad(lambda dcf: prob(objective(dcf, mut, s, bb)), lowerb, x)) 
+                Z = area0x(upperb)[0] # compute normalization constant to get probabilities
+
+                f.write(" ".join( list(map(str, [i, s, max_dcf, objective(max_dcf, mut, s, bb), delta, Z] ))))
+                f.write("\n")
+                """
+                print "Delta: ", delta
+                print "obj at max: ", objective(max_dcf, mut, s, bb)
+                print "Normalization const: ", Z
+                print
+                if Z > 0:
+                    a,b = max_dcf, max_dcf # initialize variables for CI search
+                    cdf_low, cdf_high = (area0x(a)[0]/Z), (area0x(b)[0]/Z)
+                    # CI search, brute force as some dcf/ccf distributions truncated
+                    while cdf_low > 0.025: 
+                        a = a-0.005 if cdf_low > 0.1 else a-0.001 # smaller steps as approach desired probability
+                        cdf_low = (area0x(a)[0]/Z) 
+                    while cdf_high < 0.975: 
+                        b = b+0.005 if cdf_high < 0.9 else b+0.001
+                        cdf_high = (area0x(b)[0]/Z) 
+                    a,b = max(0.0, a),min(1.0, b)
+                else:
+                    a,b = "NA", "NA"
+                    check = []
+                    for j in np.linspace(0, 1, 500):
+                        check.append(str(objective(j, mut, s, bb)))
+
+                    print i, s, " ".join(check)
+                CIs[s][i] = (a,b)
+                """
+    return CIs
 
 def run_coordinator_binary(mutations, num_samples, purity, args, record):
     L, R, maxit, prefix, restarts, ubleft, J = unpck(args)
