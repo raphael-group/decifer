@@ -162,7 +162,6 @@ def run_coordinator_iterative(mutations, num_samples, purity, args, record):
     
     # C is list of lists; rows are samples, columns are cluster IDs, values are CCFs
     #CIs = [[()]*len(C[i]) for i in range(len(C))]
-    """
     CIs = compute_CIs(set(clus), bmut, num_samples, args['betabinomial'], C)
     print_PDF(set(clus), bmut, num_samples, args['betabinomial'], C)
     print_feasibleVAFs(set(clus), bmut, num_samples, args['betabinomial'], C)
@@ -170,7 +169,6 @@ def run_coordinator_iterative(mutations, num_samples, purity, args, record):
     for i,r in enumerate(C):
         for j,c in enumerate(C[i]):
             print C[i][j], CIs[i][j]
-    """
     write_results(prefix, C, CIs, clus, conf, bmut, purity, args['betabinomial'], 'CCF' if args['ccf'] else 'DCF')
     #write_results_decifer_format(bmut, clus, prefix, selected, num_samples, C)
 
