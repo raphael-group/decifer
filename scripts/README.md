@@ -19,10 +19,10 @@ and varscan should create two files per tumor sample, starting with `base_name`,
 
 ## Step 2
 
-Additionally, `create_input.ipynb` requires a pileup file for each tumor sample independently. This may be obtained using [bcftools](http://samtools.github.io/bcftools/bcftools.html) and using the output of varscan, to generate pileups only for the sites at which SNVs were called. To get these pileups, one for each tumor sample, use the following bcftools command:
+Additionally, `create_input.ipynb` requires a pileup file for each tumor sample independently. This may be obtained using [bcftools](http://samtools.github.io/bcftools/bcftools.html) and using the outputs of varscan obtained from all samples. To get these pileups, one for each tumor sample, use the following bcftools command:
 
 ```
-bcftools mpileup {tumor_file.bam} -f {reference_sequence.fa} -T <(cut -f1-2 {tumor.snp} | grep -v position) -a INFO/AD -Ou | \
+bcftools mpileup {tumor_file.bam} -f {reference_sequence.fa} -T <(cat  {tumor.snp} ... {tumorN.snp} | cut -f1,2 | sort -k2,2 -k1,1 | uniq | grep -v position) -a INFO/AD -Ou | \
 bcftools query -f'%CHROM\t%POS\t%REF,%ALT\t%AD\n' > {tumor.mpileup.tsv} 
 ```
 
