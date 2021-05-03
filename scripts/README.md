@@ -1,6 +1,6 @@
 # Script for creating DeCiFer input
 
-DeCiFer uses information about copy-number aberrations (CNAs) and single-nucleotide variants (SNVs) to compute descendant cell fractions, but it does not itself quantify CNAs or call SNVs from sequencing data. Thus, users must employ other programs to get this information, which can then be combined into correct input files for DeCiFer using the `create_input.ipynb` python notebook in this directory.
+DeCiFer uses information about copy-number aberrations (CNAs) and single-nucleotide variants (SNVs) to compute descendant cell fractions, but it does not itself quantify CNAs or call SNVs from sequencing data. Thus, users must employ other programs to get this information, which can then be combined into correct input files for DeCiFer using the `create_input.ipynb` python [notebook](./create_input.ipynb) in this directory.
 
 Here we quantify CNAs using [HATCHet](https://github.com/raphael-group/hatchet) and call SNVs using [varscan](http://varscan.sourceforge.net/).
 
