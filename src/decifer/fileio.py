@@ -31,6 +31,8 @@ def read_in_test_file(filename):
         f.readline()
         f.readline()
         header = f.readline().strip().split('\t')
+        print "len(header) b4", len(header)
+        print header
         lines = [line.strip().split('\t') for line in f.readlines()]
         length = max([len(line) for line in lines])
         num_cstates = (length - len(header))//3
@@ -40,6 +42,10 @@ def read_in_test_file(filename):
         lines = [l + ['']*(length - len(l)) for l in lines]
 
         df = pd.DataFrame(lines)
+        print "df.columns", len(df.columns)
+        print "len(header)", len(header)
+        print "length", length
+        print "num_cstates", num_cstates
         df.columns = header
     return df
 

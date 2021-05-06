@@ -15,6 +15,7 @@ from scipy.special import betaln
 from scipy.special import gammaln
 from scipy.optimize import minimize_scalar
 from scipy.optimize import minimize
+import time
 
 from fileio import *
 from mutation import *
@@ -70,8 +71,6 @@ def optimize_assignments(mutations, C, num_samples, num_clusters, bb, last=False
             form = (lambda cf, cl, sam : (cf.cf_to_v(C[sam][cl], sam), m.a[sam], m.d[sam] - m.a[sam], bb[sam]))
         grow = (lambda sample : compute_pdfs(*zip(*[form(cb[0], cb[1], sample) for cb in combs])))
         objs = -np.sum(np.array([grow(sample) for sample in xrange(num_samples)]), axis=0)
-        print "objectives!"
-        print objs
         best = objs.argmin()
         assert objs[best] < np.inf, 'A mutation cannot be assigned to any cluster: {},{}\n\t{}\n'.format(m.index, m.label, map(lambda x : '{},{}'.format(x.mut_state, x.other_states), m.configs)) + str([m.configs[0].cf_bounds(sam) for sam in xrange(num_samples)]) + '\n' + str([C[sam][1] for sam in xrange(num_samples)]) + '\n'
         found = combs.index((m.assigned_config, m.assigned_cluster))
@@ -92,8 +91,9 @@ def optimize_assignments(mutations, C, num_samples, num_clusters, bb, last=False
 def optimize_cluster_centers(mutations, num_samples, C_old, V_old, num_clusters, bb, purity):
     vmin = (lambda muti, sam: max( [max( [m.assigned_config.cf_bounds(sam)[0] for m in muti] ) - 0.05, 0.0]))
     vmax = (lambda muti, sam: min( [min( [m.assigned_config.cf_bounds(sam)[1] for m in muti] ) + 0.05, 1.0]))
+    #minim = (lambda muti, sam : minimize_scalar(objective, args=(muti, sam, bb), method='brent', options={'brack' : (vmin(muti,sam),vmax(muti,sam)), 'xatol' : TOLERANCE}).x)
     minim = (lambda muti, sam : minimize_scalar(objective, args=(muti, sam, bb), method='bounded', bounds=[vmin(muti,sam),vmax(muti,sam)], options={'xatol' : TOLERANCE}).x)
-    #minim = (lambda muti, sam : minimize(objective, args=(muti, sam, bb), method='CG', x0=(vmin(muti,sam)+vmax(muti,sam)/2.0), bounds=((vmin(muti,sam),vmax(muti,sam)),), tol=TOLERANCE).x)
+    #minim = (lambda muti, sam : minimize(objective, args=(muti, sam, bb), method='SLSQP', x0=(((vmin(muti,sam)+vmax(muti,sam))/2.0),), bounds=((vmin(muti,sam),vmax(muti,sam)),), tol=TOLERANCE).x[0])
     #minim = (lambda muti, sam : minimize_scalar(objective, args=(muti, sam, bb), method='bounded', bounds=[0,1], options={'xatol' : TOLERANCE}).x)
     #minim = (lambda muti, sam : minimize_scalar(objective, args=(muti, sam, bb), method='golden', bounds=[0,1], options={'xatol' : TOLERANCE}).x)
     getmi = (lambda muti, sam, x : (x, objective(x, muti, sam, bb) if len(muti) > 0 else 0.0))
@@ -134,7 +134,17 @@ def compute_pdfs(_VS, _AS, _BS, _BB=None, check=False):
      VS[VS > (1.0 - SEQERROR)] = 1.0 - SEQERROR
      RS = np.full(M.shape[0], np.NINF)
      if _BB is None:
-         RS[M] = beta.logpdf(VS[M], AS[M], BS[M])
+        """
+        x = beta.logpdf(VS[M], AS[M], BS[M])
+        y = VS[M]
+        print np.ndim(x)
+        print str(x)
+        print str(y)
+        if np.ndim(x) > 1:
+            tmp = str(y) + "\n" + str(x)
+            sys.exit(tmp)
+        """
+        RS[M] = beta.logpdf(VS[M], AS[M], BS[M])
      else:
          NS = AS[M] + BS[M]
          KS = AS[M]

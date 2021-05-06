@@ -1,3 +1,6 @@
+./feasibleVAFs.txt
+./max_dcfs.txt
+./pdfs.txt
 data/
 data_reduced/
 decifer.output.tsv
