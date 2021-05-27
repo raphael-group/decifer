@@ -181,9 +181,9 @@ Each demo is an exemplary and guided execution of a DeCiFer.Each demo is simulta
 <a name="reccomendations"></a>
 ### Reccomendations and quality control
 
-- We reccomend to initially select a reasonably high maximum number of clusters with option `-K` and then further increase it if the selected best number of clusters is close to the maximum limit.
-- DeCiFer outputs the decreasing objective function which is used to select the number of clusters based on the Elbow criterion; if the function is still substantially decreasing near the selecte maximum number of clusters please try to further increase this value.
-- You can adapt the sensitivity of the Elbow criterion by adjustiv the corresponding parameter.
+- We reccomend to initially select a reasonably high maximum number of clusters with option `-K`, e.g. a number that is ~2-3 times as large as `(number of samples for the patient)+2`. Further increase `-K` if the selected best number of clusters is close to the maximum limit.
+- DeCiFer outputs the decreasing objective function which is used to select the number of clusters based on the Elbow criterion; if the function is still substantially decreasing near the selected maximum number of clusters please try to further increase this value.
+- You can adapt the sensitivity of the Elbow criterion by adjusting the corresponding parameter.
 
 <a name="development"></a>
 ## Development
