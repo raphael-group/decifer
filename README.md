@@ -36,17 +36,17 @@ During this stage, please keep checking for updates.
 <img src="doc/decifer.png" width="500">
 
 DeCiFer uses the Single Split Copy Number (SSCN) assumption and evolutionary constraints to enumerate potential genotype sets.
-This allows DeCiFer to exclude genotype sets with constant-mutation multiplicity (CMM) that are not biologically likely (red crosses) and include additional genotype sets (green star) that are.
+This allows DeCiFer to exclude genotype sets with constant mutation multiplicity (CMM) that are not biologically likely (red crosses) and include additional genotype sets (green star) that are.
 DeCiFer simultaneously selects a genotype set for each SNV and clusters all SNVs based on a probabilistic model of DCFs, which summarize both the prevalence of the SNV and its evolutionary history.
 
 <a name="installation"></a>
 ## Installation
 
-DeCiFer is mostly written in Python 2.7 and has an optional component in C++. The recommended installation is through conda but we also provide custom instructions to install DeCiFer in any Python evironment.
+DeCiFer is mostly written in Python 2.7 and has an optional component in C++. The recommended installation is through conda but we also provide custom instructions to install DeCiFer in any Python environment.
 
 ### Automatic installation 
 
-The recommended installation is through [bioconda](https://bioconda.github.io/recipes/decifer/README.html) and requires `conda`, which can be easily and locally obtained by installing one of the two most common freely available distributions: [anaconda](https://www.anaconda.com/) or [miniconda](https://docs.conda.io/en/latest/miniconda.html). Please make sure to have executed the [required channel setup](https://bioconda.github.io/user/install.html#set-up-channels) for bioconda. Thus, the following one-time one-line command is sufficient to fully install DeCiFer within a virtual conda envirnoment called `decifer`:
+The recommended installation is through [bioconda](https://bioconda.github.io/recipes/decifer/README.html) and requires `conda`, which can be easily and locally obtained by installing one of the two most common freely available distributions: [anaconda](https://www.anaconda.com/) or [miniconda](https://docs.conda.io/en/latest/miniconda.html). Please make sure to have executed the [required channel setup](https://bioconda.github.io/user/install.html#set-up-channels) for bioconda. Thus, the following one-time one-line command is sufficient to fully install DeCiFer within a virtual conda environment called `decifer`:
 
 ```shell
 conda install -n decifer decifer -y
@@ -60,7 +60,7 @@ conda activate decifer
 
 ### Manual installation
 
-DeCiFer can also be installed in a conda envirnoment directly from this repo. Thus, the following one-time commands are sufficient to fully install DeCiFer within a virtual conda envirnoment called `decifer` from this Git repo:
+DeCiFer can also be installed in a conda environment directly from this repo. Thus, the following one-time commands are sufficient to fully install DeCiFer within a virtual conda environment called `decifer` from this Git repo:
 
 ```shell
 git clone https://github.com/raphael-group/decifer.git && cd decifer/
@@ -70,7 +70,7 @@ pip install .
 
 ### Custom installation
 
-DeCiFer can be installed with `pip` by the command `pip install .` in any Python2.7 envirnoment with the following packages or compatible versions:
+DeCiFer can be installed with `pip` by the command `pip install .` in any Python2.7 environment with the following packages or compatible versions:
 
 | Package | Tested version | Comments |
 |---------|----------------|----------|
@@ -130,8 +130,8 @@ DeCiFer requires two input data:
 | Mutation label | a unique name identifying the mutation | Yes |
 | REF | Number of reads with reference allele for the mutation | Yes |
 | ALT | Number of reads with alternate allele for the mutation | Yes |
-| Copy numbers and proportions | Tab-separated `A  B  U` where `A,B` are the inferred allele-specific copy numbers for the segment harboring the mutationa and `U` is the corresponding proportion of cells (normal and tumour) with those copy numbers | Yes |
-| Additional copy numbers | An arbitrary number of fields with the same format as of `Copy numbers and proportions` describing the proportions of cells with different copy numbers. Note that all proporions should always sum up to 1. | No |
+| Copy numbers and proportions | Tab-separated `A  B  U` where `A,B` are the inferred allele-specific copy numbers for the segment harboring the mutation and `U` is the corresponding proportion of cells (normal and tumour) with those copy numbers | Yes |
+| Additional copy numbers | An arbitrary number of fields with the same format as of `Copy numbers and proportions` describing the proportions of cells with different copy numbers. Note that all proportions should always sum up to 1. | No |
 
 2. Input tumour purity in a two-column tab-separated file where every row `SAMPLE-INDEX   TUMOUR-PURITY` defines the tumour purity `TUMOUR-PURITY` of a sample with index `SAMPLE-INDEX`.
 
@@ -167,7 +167,7 @@ DeCiFer's output corresponds to a single TSV file encoding a dataframe where eve
 <a name="requirements"></a>
 ### System requirements
 
-DeCiFer is highly parallelized in order to make efficient the extensive computations needed for clustering under a probabilistic model thousands of mutations across multiple tumour samples from the same patient. We recommend executing DeCiFer on multi-processing computing machines as the running time will scale down nearly proportionally with the number of parallel jobs, which can be specified with the argument `-j`. If the parameter is not specified, then DeCiFer will attempt to use all available CPUs; however, when using a computing cluster, we strongly recommend the user to always specifies `-j` in order to match the number of requested CPUs and avoid computing competition. Finally, note that also required memory also scales with the number of parallel processes; however in all previous tests on thousands of mutations with high number of parallel processses, DeCiFer never required more than 80GB of RAM. Please lower `-j` in case of exceeding memory.
+DeCiFer is highly parallelized in order to make efficient the extensive computations needed for clustering under a probabilistic model thousands of mutations across multiple tumour samples from the same patient. We recommend executing DeCiFer on multi-processing computing machines as the running time will scale down nearly proportionally with the number of parallel jobs, which can be specified with the argument `-j`. If the parameter is not specified, then DeCiFer will attempt to use all available CPUs; however, when using a computing cluster, we strongly recommend the user to always specifies `-j` in order to match the number of requested CPUs and avoid computing competition. Finally, note that also required memory also scales with the number of parallel processes; however in all previous tests on thousands of mutations with high number of parallel processes, DeCiFer never required more than 80GB of RAM. Please lower `-j` in case of exceeding memory.
 
 <a name="demos"></a>
 ### Demos
@@ -179,9 +179,9 @@ Each demo is an exemplary and guided execution of a DeCiFer.Each demo is simulta
 | [A12](demos/demo-A12.sh) | Demo of DeCiFer basic command on prostate cancer patient A12 |
 
 <a name="reccomendations"></a>
-### Reccomendations and quality control
+### Recommendations and quality control
 
-- We reccomend to initially select a reasonably high maximum number of clusters with option `-K`, e.g. a number that is ~2-3 times as large as `(number of samples for the patient)+2`. Further increase `-K` if the selected best number of clusters is close to the maximum limit.
+- We recommend to initially select a reasonably high maximum number of clusters with option `-K`, e.g. a number that is ~2-3 times as large as `(number of samples for the patient)+2`. Further increase `-K` if the selected best number of clusters is close to the maximum limit.
 - DeCiFer outputs the decreasing objective function which is used to select the number of clusters based on the Elbow criterion; if the function is still substantially decreasing near the selected maximum number of clusters please try to further increase this value.
 - You can adapt the sensitivity of the Elbow criterion by adjusting the corresponding parameter.
 
@@ -197,6 +197,6 @@ DeCiFer has been developped and actively mantained by three previous Postdoctora
 
 - [Simone Zaccaria](https://simozacca.github.io/) (most of algorithmic core, likelihood computation, and Python implementation), group leader of the [Computational Cancer Genomics research group](https://www.ucl.ac.uk/cancer/zaccaria-lab) at UCL Cancer Institute, London, UK
 
-- [Gryte Satas](linkedin.com/in/gryte-satas-23a74844) (most of input/output interfact and CF computations for single mutations), Postdoctoral Research Fellow at Memorial Sloan Kettering Cancer Center, NY, USA
+- [Gryte Satas](linkedin.com/in/gryte-satas-23a74844) (most of input/output and CF computations for single mutations), Postdoctoral Research Fellow at Memorial Sloan Kettering Cancer Center, NY, USA
 
-- [Mohammed El-Kebir](http://www.el-kebir.net/) (generation of state trees), Assistant Professor in the Computer Science department at the University of Illinois at Urbana-Champaign (UIUC), IL, USA.
+- [Mohammed El-Kebir](https://www.el-kebir.net/) (generation of state trees), Assistant Professor in the Computer Science department at the University of Illinois at Urbana-Champaign (UIUC), IL, USA.
