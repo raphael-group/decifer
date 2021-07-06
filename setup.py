@@ -18,7 +18,7 @@ setuptools.setup(
     package_dir={'': 'src'},
     author='Simone Zaccaria and Gryte Satas and Mohammed El-Kebir',
     author_email='zaccaria@ucl.ac.uk and gsatas7@gmail.com and melkebir@illinois.edu',
-    description='DeCiFer is an algorithm that simultaneously selects mutation multiplicities and clustersSNVs by their corresponding descendant cell fractions (DCF).',
+    description='DeCiFer is an algorithm that simultaneously selects mutation multiplicities and clusters SNVs by their corresponding descendant cell fractions (DCF).',
     url='https://github.com/raphael-group/decifer',
     install_requires=[
         'numpy>=1.16.1',
