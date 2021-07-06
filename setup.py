@@ -12,7 +12,7 @@ from setuptools import setup
 
 setuptools.setup(
     name='decifer',
-    version='v1.1',
+    version='v1.1.1',
     python_requires='==2.7.*',
     packages=['decifer'],
     package_dir={'': 'src'},
@@ -24,6 +24,7 @@ setuptools.setup(
         'numpy>=1.16.1',
         'scipy>=1.2.1',
         'pandas',
+        'lemon',
         'seaborn>=0.7.1'
     ],
     include_package_data = True,
