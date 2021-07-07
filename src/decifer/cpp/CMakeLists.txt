@@ -21,6 +21,7 @@ set( mergestatetrees_hdr
 )
 
 set( generatestatetrees_src/cpp
+  arg_parser.cpp
   generatestatetreesmain.cpp
   statetree.cpp
   stategraph.cpp
@@ -31,6 +32,7 @@ set( generatestatetrees_src/cpp
 )
 
 set( generatestatetrees_hdr
+  arg_parser.h
   statetree.h
   stategraph.h
   utils.h
@@ -66,7 +68,6 @@ link_directories( ${Boost_LIBRARY_DIRS} "${LIBLEMON_ROOT}/lib" ${GUROBI_LIBRARIE
 
 set( CommonLibs
   m
-  emon.a
   pthread
   ${Boost_LIBRARIES}
 )

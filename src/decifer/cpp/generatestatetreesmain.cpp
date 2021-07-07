@@ -8,7 +8,7 @@
 #include "utils.h"
 #include "stategraph.h"
 #include "readmatrix.h"
-#include <lemon/arg_parser.h>
+#include "arg_parser.h"
 #include <fstream>
 #include "solver.h"
 
@@ -100,7 +100,7 @@ int main(int argc, char** argv)
   std::string inputStateTreeFilename;
   std::string outputStateTreeFilename;
   
-  lemon::ArgParser ap(argc, argv);
+  lemon2::ArgParser ap(argc, argv);
   ap.refOption("maxXY", "Maximum number of maternal/paternal copies (default: 2)", maxXY, false)
     .refOption("maxCN", "Maximum number of copy number events (default: 2)", maxCN, false)
     .refOption("S", "Input state tree file", inputStateTreeFilename, false)
