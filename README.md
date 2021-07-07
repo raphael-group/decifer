@@ -26,7 +26,7 @@ During this stage, please keep checking for updates.
     - [Output](#output)
     - [System requirements](#requirements)
     - [Demos](#demos)
-    - [Reccomendations and quality control](#reccomendations)
+    - [Recommendations and quality control](#reccomendations)
 4. [Development](#development)
 5. [Contacts](#contacts)
 
