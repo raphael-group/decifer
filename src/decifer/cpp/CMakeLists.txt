@@ -66,7 +66,7 @@ link_directories( ${Boost_LIBRARY_DIRS} "${LIBLEMON_ROOT}/lib" ${GUROBI_LIBRARIE
 
 set( CommonLibs
   m
-  emon
+  emon.a
   pthread
   ${Boost_LIBRARIES}
 )
