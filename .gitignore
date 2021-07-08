@@ -1,11 +1,12 @@
-./feasibleVAFs.txt
-./max_dcfs.txt
-./pdfs.txt
+feasibleVAFs.txt
+max_dcfs.txt
+pdfs.txt
 data/
 data_reduced/
 decifer.output.tsv
 out
 err
+run2.sh
 run.sh
 
 # Byte-compiled / optimized / DLL files

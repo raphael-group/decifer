@@ -31,7 +31,13 @@ def main():
     args = parse_args()
     sys.stderr.write('\n'.join(['Arguments:'] + ['\t{} : {}'.format(a, args[a]) for a in args]) + '\n')
     mutation_data = read_in_test_file(args["input"])
-    num_samples = len(mutation_data['sample_label'].unique())
+    
+    #create dictionary of sample indices and labels for printing later
+    sample_ids = { int(i[0]) : i[1] for i in zip(mutation_data['#sample_index'].unique(), mutation_data['sample_label'].unique()) }
+    for i in sample_ids:
+        print i, sample_ids[i]
+    num_samples =  len(sample_ids)
+
     if args['mink'] < 2 + num_samples:
         args['mink'] = 2 + num_samples
         sys.stderr.write('## The minimum number of clusters has been increased to {} to account for fixed clusters!\n'.format(args['mink']))
@@ -51,7 +57,7 @@ def main():
         run_coordinator_binary(mutations, num_samples, purity, args, record if args['record'] else None)
     else:
         print "Using iterative model selection"
-        run_coordinator_iterative(mutations, num_samples, purity, args, record if args['record'] else None)
+        run_coordinator_iterative(mutations, sample_ids, num_samples, purity, args, record if args['record'] else None)
     if args['record']:
         with open('record.log.tsv', 'w') as o:
             o.write('#NUM_CLUSTERS\tRESTART\tSEED\tITERATION\tOBJECTIVE\n')
@@ -128,7 +134,7 @@ def read_purity(purity_file, purity):
     return purity
 
 
-def run_coordinator_iterative(mutations, num_samples, purity, args, record):
+def run_coordinator_iterative(mutations, sample_ids, num_samples, purity, args, record):
     mink, maxk, maxit, prefix, restarts, ubleft, J = unpck(args)
     jobs = [(x, k, np.random.randint(low=0, high=2**10)) for x in xrange(restarts) for k in xrange(mink, maxk+1)]
     manager, shared = setup_shared()
@@ -162,18 +168,47 @@ def run_coordinator_iterative(mutations, num_samples, purity, args, record):
     C, bmut, clus, conf, objs = map(lambda D : shared[D][best[selected]], ['C', 'bmut', 'clus', 'conf', 'objs'])
     
     # C is list of lists; rows are samples, columns are cluster IDs, values are CCFs
-    #CIs = [[()]*len(C[i]) for i in range(len(C))]
-    #CIs = compute_CIs(set(clus), bmut, num_samples, args['betabinomial'], C)
-    CIs = compute_CIs_mp(set(clus), bmut, num_samples, args['betabinomial'], J, C)
-    print_PDF(set(clus), bmut, num_samples, args['betabinomial'], C)
+    #CIs = compute_CIs_OLD(set(clus), bmut, num_samples, args['betabinomial'], C)
+    #CIs = [[()]*len(C[i]) for i in range(len(C))] # list of lists to store CIs, same structure as C
+    CIs, PDFs = compute_CIs_mp(set(clus), bmut, num_samples, args['betabinomial'], J, C)
+    #print_PDF(set(clus), bmut, num_samples, args['betabinomial'], C)
     print_feasibleVAFs(set(clus), bmut, num_samples, args['betabinomial'], C)
 
+    with open("pdfs.txt", 'w') as f:
+        for c in set(clus):
+            for s in range(num_samples):
+                i = str(c) + "_" + str(s) + " "
+                f.write(i)
+                f.write(" ".join( list(map(str, PDFs[s][c]))))
+                f.write("\n")
     with open("max_dcfs.txt", 'w') as f:
         for c in set(clus):
             for s in range(num_samples):
                 print c, s, C[s][c], CIs[s][c][0], CIs[s][c][1]
                 f.write(" ".join( list(map(str, [c, s, C[s][c], CIs[s][c][0], CIs[s][c][1]] ))))
                 f.write("\n")
+
+    write_results_machina(num_samples, clus, sample_ids, CIs) 
+    """
+    with open("for_machina.txt", 'w') as f:
+        f.write(" ".join( [str(num_samples), "#anatomical sites", "\n"] ))
+        f.write(" ".join( [str(num_samples), "#samples", "\n"] ))
+        f.write(" ".join( [str(len(set(clus))), "#mutation clusters", "\n"] ))
+        header = ["#sample_index", "sample_label", "anatomical_site_index", "anatomical_site_label", "cluster_index", "cluster_label", "f_lb", "f_ub", "\n"]
+        f.write("\t".join(header))
+        for sample_index, sample_label in sample_ids.items():
+            for cluster_index, cluster_name in enumerate(set(clus)):
+                info = [sample_index, sample_label]
+                info.extend([sample_index, sample_label]) # using these as anatomical index and anatomical name, for now
+                info.extend( [cluster_index, cluster_name] )
+                info.extend( [CIs[sample_index][cluster_name][0], CIs[sample_index][cluster_name][1], "\n"])
+                f.write("\t".join(list(map(str, info))))
+                #print c, s, C[s][c], CIs[s][c][0], CIs[s][c][1]
+                #f.write(" ".join( list(map(str, [c, s, C[s][c], CIs[s][c][0], CIs[s][c][1]] ))))
+                #f.write("\n")
+    """
+    
+
     write_results(prefix, C, CIs, clus, conf, bmut, purity, args['betabinomial'], 'CCF' if args['ccf'] else 'DCF')
     #write_results_decifer_format(bmut, clus, prefix, selected, num_samples, C)
 
@@ -194,9 +229,10 @@ def print_PDF(cluster_ids, muts, num_samples, bb, C):
             for s in range(0,num_samples):
                 max_dcf = C[s][i] # dcf value that maximizes posterior for this sample and cluster ID
                 delta = (-1*objective(max_dcf, mut, s, bb))-2
-                prob = (lambda x: math.exp(-1*(x+delta))) # convert neg log to probability
+                #prob = (lambda x: math.exp(-1*(x+delta))) # convert neg log to probability
+                prob = (lambda x: math.exp(-1*(x))) # convert neg log to probability
                 l = []
-                for j in np.linspace(0, 1, 10000):
+                for j in np.linspace(0, 1, 1000):
                    l.append(prob(objective(j, mut, s, bb)))
                 total = np.sum(l)
                 l = [x/total for x in l]
@@ -206,44 +242,87 @@ def print_PDF(cluster_ids, muts, num_samples, bb, C):
 
 def compute_CIs_mp(cluster_ids, muts, num_samples, bb, J, C):
     CIs = [[()]*len(C[i]) for i in range(len(C))] # list of lists to store CIs, same structure as C
+    PDFs = [[()]*len(C[i]) for i in range(len(C))] # list of lists to store CIs, same structure as C
     num_tests = float(len(cluster_ids)*num_samples) # bonferroni correction for multiple hypothesis testing
     #C[s][i] is the putative mode of the pdf
-    jobs = [(c, s, muts, C[s][c], num_tests, bb) for c in cluster_ids for s in range(num_samples)]
+    jobs = [(c, s, muts, num_tests, bb) for c in cluster_ids for s in range(num_samples)]
     pool = Pool(processes=min(J, len(jobs)))
     results = pool.imap_unordered(CI, jobs)
     pool.close()
     pool.join()
     for i in results:
-        clust, samp, lower, upper = i[0], i[1], i[2], i[3]
+        clust, samp, lower, upper, pdf = i[0], i[1], i[2], i[3], i[4]
         CIs[samp][clust] = (lower,upper)
+        PDFs[samp][clust] = pdf
 
-
-    return CIs
+    return CIs, PDFs 
 
 def CI(job):
-    c, s, muts, mode, num_tests, bb = job # c is cluster, s is sample
+    """
+    Computes CIs for a sample-cluster combination
+
+    There have been two issues in dealing with the "objective" function to characterize the PDF of CCF/DCF values, needed for obtaining CIs.
+    1.) converting -log(unnormalized probability) from objective to an unnormalized probability produced prohibitively large numbers (-log numbers 
+    are very negative such that e^-x huge), so we rescaled all values based on the most negative -log value observed from many samples from objective
+    (previously we tried using cluster centers, but these do not succeed in finding mode especially when PDF is extremely narrow/disjoint from
+    infeasible VAF values truncating distribution).
+    2.) across the support of the CCF/DCF PDF distribution, some sample-cluster combinations have 0 values everywhere except an extremely narrow range,
+    so trying to integrate approximately with functions like scipy.integrate.quad to get a normalization constant produces 0, because all sampled
+    points yield 0.
+
+    Thus, we have used a brute force method where we sample num_pts from the objective function, and use these to create and cahracterize the PDF of
+    the CCF/DCF distribution.
+    """
+    c, s, muts, num_tests, bb = job # c is cluster, s is sample
     mut = filter(lambda m : m.assigned_cluster == c, muts) 
-    #x = objective(0.5, mut, sample, bb)
-    #return (cluster, sample, len(mut))
-    #return(x)
-    # constant to make -log(pdf) values less negative, otherwise prohibitively large when converted to resular probabilities
-    delta = (-1*objective(mode, mut, s, bb))-2 
-    prob = (lambda x: math.exp(-1*(x+delta))) # convert -log(pdf) to unnormalized probability
-    # narrow bounds for integration; helped prevent errors induced by pdf=0 for majority of [0,1]
+    
+    # narrow bounds for operaations; helped prevent errors induced by pdf=0 for majority of [0,1]
     lowerb = max(max([m.assigned_config.cf_bounds(s)[0] for m in mut]) - 0.05, 0.0) # max lower feasible VAF, 0 as limit
     upperb = min(min([m.assigned_config.cf_bounds(s)[1] for m in mut]) + 0.05, 1.0) # min upper feasible VAF, 1 as limit
+
+    # more refined search for efficiency, but lose x-value info for pdf values
+    #steps = int( (upperb-lowerb)/0.001 )                # grid search for min -log(pdf) by steps of 0.001
+    #grid = [objective(j, mut, s, bb) for j in np.linspace(lowerb, upperb, steps)]
+    num_pts = 10000
+
+    grid = [objective(j, mut, s, bb) for j in np.linspace(0, 1, num_pts)]
+    min_log = min(grid)
+    delta = (-1*min_log)-2      # constant to make -log(pdf) values less negative
+    prob = (lambda x: math.exp(-1*(x+delta)))           # convert -log(pdf) to unnormalized probability
+    total = sum([prob(x) for x in grid])                # unnormalized probabilities across support
+    pdf = [prob(x)/total for x in grid]                 # unnormalized probabilities across support
+    quant = (lambda x,q: sum(pdf[0:int(x)+1]) - q)
+    low_ci = 0.025/num_tests                            # divide the desired CI quantile by the number of tests, bonferonni correction
+
+    # get indices of pdf that correspond to quantiles of interest
+    # if first pdf point already greater than low ci, assign 0 (otherwise bisect fails; f(a) and f(b) have same sign)
+    l = 0 if quant(1, low_ci) > 0 else int((bisect(quant, a=1, b=num_pts, args=(low_ci), xtol=0.001)))
+    high_ci = 1 - low_ci
+    # if last point already lower than high ci, assign num_pts
+    u = num_pts if quant(num_pts, high_ci) < 0 else int((bisect(quant, a=1, b=num_pts, args=(high_ci), xtol=0.001)))
+    l = float(l)/num_pts
+    u = float(u)/num_pts
+
+    """
     # integrate unormalized dcf/ccf PDF from lowerb -> x; note quad func takes it's own lambda func and return tuple of (area,error)
     area0x = (lambda x: integrate.quad(lambda dcf: prob(objective(dcf, mut, s, bb)), lowerb, x)) 
     Z = area0x(upperb)[0] # compute normalization constant to get probabilities
+    if Z == 0:
+        print "Z is 0"
+        print "min_log ", min_log
+        print "delta ", delta
+        print "lower/upper ", lowerb, upperb 
     # Bisection method
     quant = (lambda x,q: (area0x(x)[0])/Z - q) # q is the desired CI quantile to find via bisection
     low_ci = 0.025/num_tests # divide the desired CI quantile by the number of tests, bonferonni correction
     l = bisect(quant, a=lowerb, b=upperb, args=(low_ci), xtol=0.001)
     high_ci = 1 - low_ci
     u = bisect(quant, a=lowerb, b=upperb, args=(high_ci), xtol=0.001)
-    return (c, s, l, u)
+    """
 
-def compute_CIs(cluster_ids, muts, num_samples, bb, C):
+    return (c, s, l, u, pdf)
+
+def compute_CIs_OLD(cluster_ids, muts, num_samples, bb, C):
     CIs = [[()]*len(C[i]) for i in range(len(C))] # list of lists to store CIs, same structure as C
     num_tests = float(len(cluster_ids)*num_samples) # bonferroni correction for multiple hypothesis testing
     print num_tests
@@ -258,26 +337,10 @@ def compute_CIs(cluster_ids, muts, num_samples, bb, C):
                 lowerb = max(max([m.assigned_config.cf_bounds(s)[0] for m in mut]) - 0.05, 0.0) # max lower bound, 0 as limit
                 upperb = min(min([m.assigned_config.cf_bounds(s)[1] for m in mut]) + 0.05, 1.0) # min upper bound, 1 as limit
                 # integrate unormalized dcf/ccf PDF from 0 -> x; note quad func takes it's own lambda func and return tuple of (area,error)
-                """
-                area0x = (lambda x: integrate.quad(lambda dcf: prob(objective(dcf, mut, s, bb)), 0.0, x)) 
-                Z = area0x(1)[0] # compute normalization constant to get probabilities
-                """
                 area0x = (lambda x: integrate.quad(lambda dcf: prob(objective(dcf, mut, s, bb)), lowerb, x)) 
                 Z = area0x(upperb)[0] # compute normalization constant to get probabilities
 
-                #mid = (lambda x, mut, s, bb: (integrate.quad(lambda dcf: prob(objective(dcf, mut, s, bb)), lowerb, x) - 0.5)/Z )
                 quant = (lambda x,q: (area0x(x)[0])/Z - q) # divide the desired CI quantile by the number of tests
-
-                #minim = minimize_scalar(mid, method='bounded', bounds=[lowerb,upperb], options={'xatol' : TOLERANCE}).x
-                #print lowerb, upperb, ((lowerb+upperb)/2.0)
-                """
-                minim = minimize_scalar(mid, method='bounded', bounds=[lowerb,upperb], tol=TOLERANCE).x
-                print "bounded"
-                print type(minim)
-                minim = minimize(mid, method='SLSQP', x0=((lowerb+upperb)/2.0), bounds=((lowerb,upperb),), tol=TOLERANCE).x[0]
-                print "slsqp"
-                print type(minim)
-                """
 
                 f.write(" ".join( list(map(str, [i, s, max_dcf, objective(max_dcf, mut, s, bb), delta, Z] ))))
                 f.write("\n")
@@ -295,6 +358,17 @@ def compute_CIs(cluster_ids, muts, num_samples, bb, C):
 
 
                 """
+                # OLD CODE
+                area0x = (lambda x: integrate.quad(lambda dcf: prob(objective(dcf, mut, s, bb)), 0.0, x)) 
+                Z = area0x(1)[0] # compute normalization constant to get probabilities
+                #mid = (lambda x, mut, s, bb: (integrate.quad(lambda dcf: prob(objective(dcf, mut, s, bb)), lowerb, x) - 0.5)/Z )
+                minim = minimize_scalar(mid, method='bounded', bounds=[lowerb,upperb], tol=TOLERANCE).x
+                print "bounded"
+                print type(minim)
+                minim = minimize(mid, method='SLSQP', x0=((lowerb+upperb)/2.0), bounds=((lowerb,upperb),), tol=TOLERANCE).x[0]
+                print "slsqp"
+                print type(minim)
+
                 print "Delta: ", delta
                 print "obj at max: ", objective(max_dcf, mut, s, bb)
                 print "Normalization const: ", Z
