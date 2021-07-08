@@ -31,8 +31,6 @@ def read_in_test_file(filename):
         f.readline()
         f.readline()
         header = f.readline().strip().split('\t')
-        print "len(header) b4", len(header)
-        print header
         lines = [line.strip().split('\t') for line in f.readlines()]
         length = max([len(line) for line in lines])
         num_cstates = (length - len(header))//3
@@ -42,10 +40,6 @@ def read_in_test_file(filename):
         lines = [l + ['']*(length - len(l)) for l in lines]
 
         df = pd.DataFrame(lines)
-        print "df.columns", len(df.columns)
-        print "len(header)", len(header)
-        print "length", length
-        print "num_cstates", num_cstates
         df.columns = header
     return df
 
@@ -112,3 +106,18 @@ def write_results_decifer_format(mutations, mut_cluster_assignments, prefix, num
 def write_results_BIC(bic, ll, num_clusters, prefix):
     with open('{}.bic'.format(prefix), 'a') as out:
         out.write('\t'.join(map(str,[num_clusters, ll, bic])) + '\n')
+
+def write_results_machina(num_samples, clus, sample_ids, CIs):
+    with open("for_machina.txt", 'w') as f:
+        f.write(" ".join( [str(num_samples), "#anatomical sites", "\n"] ))
+        f.write(" ".join( [str(num_samples), "#samples", "\n"] ))
+        f.write(" ".join( [str(len(set(clus))), "#mutation clusters", "\n"] ))
+        header = ["#sample_index", "sample_label", "anatomical_site_index", "anatomical_site_label", "cluster_index", "cluster_label", "f_lb", "f_ub", "\n"]
+        f.write("\t".join(header))
+        for sample_index, sample_label in sample_ids.items():
+            for cluster_index, cluster_name in enumerate(set(clus)):
+                info = [sample_index, sample_label]
+                info.extend([sample_index, sample_label]) # using these as anatomical index and anatomical name, for now
+                info.extend( [cluster_index, cluster_name] )
+                info.extend( [CIs[sample_index][cluster_name][0], CIs[sample_index][cluster_name][1], "\n"])
+                f.write("\t".join(list(map(str, info))))
