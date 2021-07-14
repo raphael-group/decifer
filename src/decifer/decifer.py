@@ -19,7 +19,7 @@ from copy import deepcopy
 from multiprocessing import Lock, Value, Pool, Manager
 import numpy as np
 import scipy.integrate as integrate
-from scipy.optimize import bisect
+from bisect import bisect_left
 
 from fileio import *
 from new_coordinate_ascent import *
@@ -263,28 +263,36 @@ def CI(job):
     delta = (-1*min_log)-2      # constant to make -log(pdf) values less negative
     prob = (lambda x: math.exp(-1*(x+delta)))           # convert -log(pdf) to unnormalized probability
     total = sum([prob(x) for x in grid])                # unnormalized probabilities across support
-    pdf = [prob(x)/total for x in grid]                 # unnormalized probabilities across support
+    pdf = [prob(x)/total for x in grid]                 # normalized probabilities across support
+    cdf = np.cumsum(pdf)
 
-    # with our pdf, use binary search to quickly find CDF values of interest, e.g. those that correspond to CIs
-    quant = (lambda x,q: sum(pdf[0:int(x)]) - q)
     low_ci = 0.025/num_tests                            # divide the desired CI quantile by the number of tests, bonferonni correction
-    # get indices of pdf that correspond to quantiles of interest
-    # if first pdf point already greater than low ci, assign 0 (otherwise bisect fails; f(a) and f(b) have same sign)
-    if quant(1, low_ci) > 0:
-        l = 0
-    elif quant(1, low_ci) == 0:
-        l = 1
-    else:
-        l = int((bisect(quant, a=1, b=num_pts, args=(low_ci), xtol=0.001)))
-    #l = 0 if quant(1, low_ci) >= 0 else int((bisect(quant, a=1, b=num_pts, args=(low_ci), xtol=0.001)))
-
     high_ci = 1 - low_ci
-    # if last point already lower than high ci, assign num_pts
-    u = num_pts if quant(num_pts, high_ci) <= 0 else int((bisect(quant, a=1, b=num_pts, args=(high_ci), xtol=0.001)))
-    l = float(l)/num_pts
-    u = float(u)/num_pts
+
+    low_index = take_closest(cdf, low_ci)
+    high_index = take_closest(cdf, high_ci)
+
+    l = float(low_index)/num_pts
+    u = float(high_index)/num_pts
 
     return (c, s, l, u, pdf)
+
+def take_closest(myList, myNumber):
+    """
+    Assumes myList is sorted. Returns closest value to myNumber.
+    If two numbers are equally close, return the smallest number.
+    """
+    pos = bisect_left(myList, myNumber)
+    if pos <= 0:
+        return 0
+    if pos >= len(myList):
+        return pos-1
+    before = myList[pos - 1]
+    after = myList[pos]
+    if after - myNumber < myNumber - before:
+        return pos 
+    else:
+        return pos-1
 
 def compute_CIs_OLD(cluster_ids, muts, num_samples, bb, C):
     CIs = [[()]*len(C[i]) for i in range(len(C))] # list of lists to store CIs, same structure as C
