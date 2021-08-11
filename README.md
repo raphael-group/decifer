@@ -142,7 +142,7 @@ DeCiFer can use the following additional and optional input data:
 
 1. Precision parameters for fitting beta-binomial distributions when clustering mutations. Specifically, this is a two-column tab-separated file where every row `SAMPLE-INDEX   PRECISION` defines the precision parameter `PRECISION` of the beta binomial distribution of a sample with index `SAMPLE-INDEX`. When this optional file is not provided, DeCiFer will fit a binomial distribution instead. This file can be estimated by using the command `decifer_fit`, whose usage is described in the corresponding [manual](man/man-decifer-fit.md).
 
-2. File containing the set of all possible state trees evaluated by DeCiFer. State trees have been generated for the set of most common copy numbers, however a dataset might have a combination of copy numbers which has not been included. In this case, the user can use the command `decifer_statetrees` to generate all the state trees needed for its dataset, following the instructions in the corresponding [manual](man/man-decifer-manual.md).
+2. File containing the set of all possible state trees evaluated by DeCiFer. State trees have been generated for the set of most common copy numbers, however a dataset might have a combination of copy numbers which has not been included. In this case, the user can use the command `generatestatetrees` to generate all the state trees needed for its dataset, following the instructions in the corresponding [manual](man/man-decifer-manual.md).
 
 <a name="output"></a>
 ### Output
