@@ -1,6 +1,18 @@
 #!/usr/bin/python -tt
 
 """
+This is a python script that takes as input (1) a multi-sample VCF, e.g. variants called in multiple tumor samples from a single patient, (2) a file containing copy number aberration information, e.g. the "best.seg.ucn" file that is output by the program HATCHet.
+
+This script also uses cyvcf2 to parse VCF files efficiently, and the python implementation of bedtools to find which CNA interval each SNV overlaps with. Please make a conda environment containing these python modules before running this script.
+
+Thus, to run this script, type the following:
+
+conda create -n vcf_bedtools pybedtools cyvcf2 -y
+conda activate vcf_bedtools
+python vcf_2_decifer.py vcf_file.vcf best.seg.ucn output_directory
+
+Note that the script takes 3 command line arguments: the VCF file, the CNA file, and the name of the directory where output files are placed.
+
 """
 
 import re
@@ -146,6 +158,10 @@ def main():
     vcf_file = sys.argv[1]
     cna_file = sys.argv[2]
     outdir = sys.argv[3]
+
+    if len(sys.argv) < 4:
+        sys.exit("usage: python vcf_2_decifer.py vcf_file.vcf best.seg.ucn output_directory")
+
     max_CN = 8 # the maximum number of copies observed for a maternal/paternal allele; this constraint reduces the amount of time taken to generate state trees; we recommend setting this to no higher than 6
     vcf_name = os.path.basename(vcf_file)
     vcf = VCF(vcf_file, gts012=True)
