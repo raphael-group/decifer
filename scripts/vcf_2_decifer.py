@@ -9,9 +9,9 @@ Thus, to run this script, type the following:
 
 conda create -n vcf_bedtools pybedtools cyvcf2 -y
 conda activate vcf_bedtools
-python vcf_2_decifer.py vcf_file.vcf best.seg.ucn output_directory
+python vcf_2_decifer.py [OPTIONS]
 
-Note that the script takes 3 command line arguments: the VCF file, the CNA file, and the name of the directory where output files are placed.
+Note that the names of the samples must be the same in the VCF and CNA file.
 
 """
 
@@ -23,6 +23,7 @@ import os
 import pandas as pd
 import numpy as np
 from collections import defaultdict
+import argparse
 
 
 def filterByDepth(gt_depths, gt_alt_depths, Filter):
@@ -155,6 +156,16 @@ def overlap_cna_snp(vcf_samples, max_CN):
 
 def main():
 
+    parser = argparse.ArgumentParser(description='Generate input for Decifer using VCF file and HATCHet CNA file')
+    parser.add_argument("-V","--vcf_file", required=True, type=str, help="single or multi-sample VCF file")
+    parser.add_argument("-C","--cna_file", required=True, type=str, help="HATCHet CNA file: best.seg.ucn ")
+    parser.add_argument("-O","--out_dir", required=False, default="./", type=str, help="directory for outputting files")
+    parser.add_argument("-M","--min_depth", required=True, type=int, help="minimum depth PER sample")
+    parser.add_argument("-A","--min_alt_depth", required=True, type=int, help="minimum depth of ALT allele in at least one sample")
+    parser.add_argument("-N","--max_CN", required=False, default=6, type=int, help="maximum total copy number for each observed clone")
+    args = parser.parse_args()
+
+    """
     vcf_file = sys.argv[1]
     cna_file = sys.argv[2]
     outdir = sys.argv[3]
@@ -163,14 +174,15 @@ def main():
         sys.exit("usage: python vcf_2_decifer.py vcf_file.vcf best.seg.ucn output_directory")
 
     max_CN = 8 # the maximum number of copies observed for a maternal/paternal allele; this constraint reduces the amount of time taken to generate state trees; we recommend setting this to no higher than 6
-    vcf_name = os.path.basename(vcf_file)
-    vcf = VCF(vcf_file, gts012=True)
-    cna = cna_file 
+    """
+    vcf_name = os.path.basename(args.vcf_file)
+    vcf = VCF(args.vcf_file, gts012=True)
+    #cna = cna_file 
     
     # Filtering criteria
     FilterDP = {}
-    FilterDP['MinDepth'] = 8
-    FilterDP['MinDepthAltAllele'] = 3
+    FilterDP['MinDepth'] = args.min_depth
+    FilterDP['MinDepthAltAllele'] = args.min_alt_depth
     
     #samples = ["SJHGG010325_A3", "SJHGG010325_A4", "SJHGG010325_A5"]
     #vcf.set_samples(samples)
@@ -191,9 +203,9 @@ def main():
             print(pos[0], int(pos[1])-1, int(pos[1]), pos[2], pos[3],  sep="\t", file=out)
 
     # Load in CNA information
-    cna_df = pd.read_csv(cna, sep = '\t', index_col=False)
+    cna_df = pd.read_csv(args.cna_file, sep = '\t', index_col=False)
     # print purity information
-    print_purities(cna_df, sample_index, num_samples, outdir)
+    print_purities(cna_df, sample_index, num_samples, args.out_dir)
 
     # prepare BED files for CNA intervals for each sample, for overlapping with SNPs
     for sample in vcf.samples:
@@ -206,13 +218,13 @@ def main():
     # overlap SNPs with CNA intervals for each sample
     # cna_overlaps[char_label] = list of tuples of CNA info (one tuple for each sample, in same order as vcf.samples)
     # this function also prints the observed CN state trees for the generatestatetrees function
-    cna_overlaps, cn_states_allsites, filtered_sites = overlap_cna_snp(vcf.samples, max_CN)
+    cna_overlaps, cn_states_allsites, filtered_sites = overlap_cna_snp(vcf.samples, args.max_CN)
     
     # sites may have unique CN states that are duplicate; set them to find unique CN states across sites
-    print_unique_CN_states(cn_states_allsites, max_CN, outdir)
-    print_filtered_sites(filtered_sites, cna_overlaps, outdir)
+    print_unique_CN_states(cn_states_allsites, args.max_CN, args.out_dir)
+    print_filtered_sites(filtered_sites, cna_overlaps, args.out_dir)
 
-    print_output(vcf, ref_var_depths, cna_overlaps, outdir) 
+    print_output(vcf, ref_var_depths, cna_overlaps, args.out_dir) 
 
     os.system(f"rm snps.bed")
     for sample in vcf.samples:
