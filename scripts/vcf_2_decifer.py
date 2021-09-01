@@ -1,18 +1,16 @@
 #!/usr/bin/python -tt
 
 """
-This is a python script that takes as input (1) a multi-sample VCF, e.g. variants called in multiple tumor samples from a single patient, (2) a file containing copy number aberration information, e.g. the "best.seg.ucn" file that is output by the program HATCHet.
+Please type "python3 vcf_2_decifer.py --help" for a the full list of options
+
+This is a python script that takes as input (1) a multi-sample VCF, e.g. variants called in multiple tumor samples from a single patient, (2) a file containing copy number aberration information, e.g. the "best.seg.ucn" file that is output by the program HATCHet. The sample names must agree in both files!
 
 This script also uses cyvcf2 to parse VCF files efficiently, and the python implementation of bedtools to find which CNA interval each SNV overlaps with. Please make a conda environment containing these python modules before running this script.
+For instance, do the following to run this script:
 
-Thus, to run this script, type the following:
-
-conda create -n vcf_bedtools pybedtools cyvcf2 -y
+conda create -n vcf_bedtools pybedtools cyvcf2 pandas -y
 conda activate vcf_bedtools
 python vcf_2_decifer.py [OPTIONS]
-
-Note that the names of the samples must be the same in the VCF and CNA file.
-
 """
 
 import re
@@ -165,27 +163,14 @@ def main():
     parser.add_argument("-N","--max_CN", required=False, default=6, type=int, help="maximum total copy number for each observed clone")
     args = parser.parse_args()
 
-    """
-    vcf_file = sys.argv[1]
-    cna_file = sys.argv[2]
-    outdir = sys.argv[3]
-
-    if len(sys.argv) < 4:
-        sys.exit("usage: python vcf_2_decifer.py vcf_file.vcf best.seg.ucn output_directory")
-
-    max_CN = 8 # the maximum number of copies observed for a maternal/paternal allele; this constraint reduces the amount of time taken to generate state trees; we recommend setting this to no higher than 6
-    """
     vcf_name = os.path.basename(args.vcf_file)
     vcf = VCF(args.vcf_file, gts012=True)
-    #cna = cna_file 
     
     # Filtering criteria
     FilterDP = {}
     FilterDP['MinDepth'] = args.min_depth
     FilterDP['MinDepthAltAllele'] = args.min_alt_depth
     
-    #samples = ["SJHGG010325_A3", "SJHGG010325_A4", "SJHGG010325_A5"]
-    #vcf.set_samples(samples)
     num_samples = len(vcf.samples)
     sample_index = { vcf.samples[i] : i for i in range(len(vcf.samples)) }
     print(vcf.samples)
