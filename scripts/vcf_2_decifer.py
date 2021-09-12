@@ -111,7 +111,7 @@ def print_filtered_sites(filtered_sites, cna_overlaps, outdir):
     with open(f"{outdir}/filtered_stats.txt",'w') as out:
         filtered = len(filtered_sites)
         total = len(cna_overlaps.keys())
-        print("# sites that were filtered due to copy-number states > max_CN", filtered, file=out)
+        print("# sites that were filtered due to copy-number states > max_CN", file=out)
         print("filtered: ", filtered, file=out)
         print("fraction: ", float(filtered/total), file=out)
 
