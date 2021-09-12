@@ -85,6 +85,7 @@ def print_purities(cna_df, sample_index, num_samples, outdir):
             print(sample_index[sample], purities[sample], file=out, sep="\t")
 
 def filter_high_CN_sites(cn_states_persite, max_CN):
+    # returns 0 if site has CN state greater than max_CN
     # cn_states_persite is a list of 2-tuples, CN states of maternal/paternal chromosomes
     for i in cn_states_persite:
         if int(i[0]) + int(i[1]) > max_CN:
@@ -108,9 +109,10 @@ def print_filtered_sites(filtered_sites, cna_overlaps, outdir):
         out.write("\n".join(filtered_sites))
         print(file=out)
     with open(f"{outdir}/filtered_stats.txt",'w') as out:
-        filtered = len(filtered_sites)                                                                                                                   
-        total = len(cna_overlaps.keys())                                                                                                                 
-        print("filtered: ", filtered, file=out)                                                                                                          
+        filtered = len(filtered_sites)
+        total = len(cna_overlaps.keys())
+        print("# sites that were filtered due to copy-number states > max_CN", filtered, file=out)
+        print("filtered: ", filtered, file=out)
         print("fraction: ", float(filtered/total), file=out)
 
 def overlap_cna_snp(vcf_samples, max_CN, out_dir):
@@ -120,7 +122,7 @@ def overlap_cna_snp(vcf_samples, max_CN, out_dir):
     snps = pbt.BedTool(f"{out_dir}/snps.bed")
     # for each sample in VCF, intersect it's SNVs with sample-specific CNAs
     for sample in vcf_samples:
-        sample_cnas = pbt.BedTool(f"{out_dir}/{sample}.bed")    
+        sample_cnas = pbt.BedTool(f"{out_dir}/{sample}_cna.bed")    
         #snps.intersect(sample_cnas, wo=True).saveas(f"snps_cnas_overlap_{sample}.bed")
         bed = snps.intersect(sample_cnas, wo=True)
         for line in bed:
@@ -157,7 +159,7 @@ def main():
     parser = argparse.ArgumentParser(description='Generate input for Decifer using VCF file and HATCHet CNA file')
     parser.add_argument("-V","--vcf_file", required=True, type=str, help="single or multi-sample VCF file")
     parser.add_argument("-C","--cna_file", required=True, type=str, help="HATCHet CNA file: best.seg.ucn ")
-    parser.add_argument("-O","--out_dir", required=True, default="./", type=str, help="directory for outputting files")
+    parser.add_argument("-O","--out_dir", required=True, default="./", type=str, help="directory for printing files; please make unique for each patient!")
     parser.add_argument("-M","--min_depth", required=True, type=int, help="minimum depth PER sample")
     parser.add_argument("-A","--min_alt_depth", required=True, type=int, help="minimum depth of ALT allele in at least one sample")
     parser.add_argument("-N","--max_CN", required=False, default=6, type=int, help="maximum total copy number for each observed clone")
@@ -195,10 +197,10 @@ def main():
     # prepare BED files for CNA intervals for each sample, for overlapping with SNPs
     for sample in vcf.samples:
         df = cna_df[cna_df['SAMPLE'] == sample]
-        # subtract 1 from start of interval to be compatible with BED format, leave end interval alone
-        df.loc[:,'START'] = df['START']-1 
+        # consider subtracting 1 from start of interval to be compatible with BED format, leave end interval alone
+        df.loc[:,'START'] = df['START']
         df = df.drop('SAMPLE', axis=1)
-        df.to_csv(f"{args.out_dir}/{sample}.bed", index=False, sep="\t")
+        df.to_csv(f"{args.out_dir}/{sample}_cna.bed", index=False, sep="\t")
 
     # overlap SNPs with CNA intervals for each sample
     # cna_overlaps[char_label] = list of tuples of CNA info (one tuple for each sample, in same order as vcf.samples)
@@ -213,7 +215,7 @@ def main():
 
     os.system(f"rm {args.out_dir}/snps.bed")
     for sample in vcf.samples:
-        os.system(f"rm {args.out_dir}/{sample}.bed")
+        os.system(f"rm {args.out_dir}/{sample}_cna.bed")
     
 if __name__ == '__main__':
   main()
