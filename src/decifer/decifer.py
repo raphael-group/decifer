@@ -168,12 +168,13 @@ def run_coordinator_iterative(mutations, sample_ids, num_samples, purity, args, 
     C, bmut, clus, conf, objs = map(lambda D : shared[D][best[selected]], ['C', 'bmut', 'clus', 'conf', 'objs'])
     
     # C is list of lists; rows are samples, columns are cluster IDs, values are CCFs
-    #CIs = compute_CIs_OLD(set(clus), bmut, num_samples, args['betabinomial'], C)
     #CIs = [[()]*len(C[i]) for i in range(len(C))] # list of lists to store CIs, same structure as C
     CIs, PDFs = compute_CIs_mp(set(clus), bmut, num_samples, args['betabinomial'], J, C)
-    #print_PDF(set(clus), bmut, num_samples, args['betabinomial'], C)
-    print_feasibleVAFs(set(clus), bmut, num_samples, args['betabinomial'], C)
 
+    """
+    # FOR TESTING
+    #print_PDF(set(clus), bmut, num_samples, args['betabinomial'], C)
+    #print_feasibleVAFs(set(clus), bmut, num_samples, args['betabinomial'], C)
     with open("pdfs.txt", 'w') as f:
         for c in set(clus):
             for s in range(num_samples):
@@ -187,8 +188,9 @@ def run_coordinator_iterative(mutations, sample_ids, num_samples, purity, args, 
                 print c, s, C[s][c], CIs[s][c][0], CIs[s][c][1]
                 f.write(" ".join( list(map(str, [c, s, C[s][c], CIs[s][c][0], CIs[s][c][1]] ))))
                 f.write("\n")
+    """
 
-    write_results_machina(num_samples, clus, sample_ids, CIs) 
+    write_results_CIs(prefix, num_samples, clus, sample_ids, CIs) 
 
     write_results(prefix, C, CIs, clus, conf, bmut, purity, args['betabinomial'], 'CCF' if args['ccf'] else 'DCF')
     #write_results_decifer_format(bmut, clus, prefix, selected, num_samples, C)
@@ -293,79 +295,6 @@ def take_closest(myList, myNumber):
         return pos 
     else:
         return pos-1
-
-def compute_CIs_OLD(cluster_ids, muts, num_samples, bb, C):
-    CIs = [[()]*len(C[i]) for i in range(len(C))] # list of lists to store CIs, same structure as C
-    num_tests = float(len(cluster_ids)*num_samples) # bonferroni correction for multiple hypothesis testing
-    print num_tests
-    with open("max_dcfs.txt", 'w') as f:
-        for i in cluster_ids:
-            mut = filter(lambda m : m.assigned_cluster == i, muts) 
-            for s in range(0,num_samples):
-                max_dcf = C[s][i] # dcf value that maximizes posterior for this sample and cluster ID
-                #delta = (-1*objective(max_dcf, mut, s, bb))-2
-                #prob = (lambda x: math.exp(-1*(x+delta))) # convert neg log to probability
-                prob = (lambda x: math.exp(-1*x)) # convert neg log to probability
-                lowerb = max(max([m.assigned_config.cf_bounds(s)[0] for m in mut]) - 0.05, 0.0) # max lower bound, 0 as limit
-                upperb = min(min([m.assigned_config.cf_bounds(s)[1] for m in mut]) + 0.05, 1.0) # min upper bound, 1 as limit
-                # integrate unormalized dcf/ccf PDF from 0 -> x; note quad func takes it's own lambda func and return tuple of (area,error)
-                area0x = (lambda x: integrate.quad(lambda dcf: prob(objective(dcf, mut, s, bb)), lowerb, x)) 
-                Z = area0x(upperb)[0] # compute normalization constant to get probabilities
-
-                quant = (lambda x,q: (area0x(x)[0])/Z - q) # divide the desired CI quantile by the number of tests
-
-                f.write(" ".join( list(map(str, [i, s, max_dcf, objective(max_dcf, mut, s, bb), delta, Z] ))))
-                f.write("\n")
-
-                # Bisection method
-                """
-                low_ci = 0.025/num_tests
-                l = bisect(quant, a=lowerb, b=upperb, args=(low_ci), xtol=0.001)
-                high_ci = 1 - low_ci
-                u = bisect(quant, a=lowerb, b=upperb, args=(high_ci), xtol=0.001)
-                print i, s, l, u
-                """
-
-
-
-
-                """
-                # OLD CODE
-                area0x = (lambda x: integrate.quad(lambda dcf: prob(objective(dcf, mut, s, bb)), 0.0, x)) 
-                Z = area0x(1)[0] # compute normalization constant to get probabilities
-                #mid = (lambda x, mut, s, bb: (integrate.quad(lambda dcf: prob(objective(dcf, mut, s, bb)), lowerb, x) - 0.5)/Z )
-                minim = minimize_scalar(mid, method='bounded', bounds=[lowerb,upperb], tol=TOLERANCE).x
-                print "bounded"
-                print type(minim)
-                minim = minimize(mid, method='SLSQP', x0=((lowerb+upperb)/2.0), bounds=((lowerb,upperb),), tol=TOLERANCE).x[0]
-                print "slsqp"
-                print type(minim)
-
-                print "Delta: ", delta
-                print "obj at max: ", objective(max_dcf, mut, s, bb)
-                print "Normalization const: ", Z
-                print
-                if Z > 0:
-                    a,b = max_dcf, max_dcf # initialize variables for CI search
-                    cdf_low, cdf_high = (area0x(a)[0]/Z), (area0x(b)[0]/Z)
-                    # CI search, brute force as some dcf/ccf distributions truncated
-                    while cdf_low > 0.025: 
-                        a = a-0.005 if cdf_low > 0.1 else a-0.001 # smaller steps as approach desired probability
-                        cdf_low = (area0x(a)[0]/Z) 
-                    while cdf_high < 0.975: 
-                        b = b+0.005 if cdf_high < 0.9 else b+0.001
-                        cdf_high = (area0x(b)[0]/Z) 
-                    a,b = max(0.0, a),min(1.0, b)
-                else:
-                    a,b = "NA", "NA"
-                    check = []
-                    for j in np.linspace(0, 1, 500):
-                        check.append(str(objective(j, mut, s, bb)))
-
-                    print i, s, " ".join(check)
-                CIs[s][i] = (a,b)
-                """
-    return CIs
 
 def run_coordinator_binary(mutations, num_samples, purity, args, record):
     L, R, maxit, prefix, restarts, ubleft, J = unpck(args)

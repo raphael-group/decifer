@@ -107,8 +107,8 @@ def write_results_BIC(bic, ll, num_clusters, prefix):
     with open('{}.bic'.format(prefix), 'a') as out:
         out.write('\t'.join(map(str,[num_clusters, ll, bic])) + '\n')
 
-def write_results_machina(num_samples, clus, sample_ids, CIs):
-    with open("for_machina.txt", 'w') as f:
+def write_results_CIs(prefix, num_samples, clus, sample_ids, CIs):
+    with open('{}.cluster.CIs.tsv'.format(prefix), 'w') as f:
         f.write(" ".join( [str(num_samples), "#anatomical sites", "\n"] ))
         f.write(" ".join( [str(num_samples), "#samples", "\n"] ))
         f.write(" ".join( [str(len(set(clus))), "#mutation clusters", "\n"] ))
