@@ -113,14 +113,14 @@ def print_filtered_sites(filtered_sites, cna_overlaps, outdir):
         print("filtered: ", filtered, file=out)                                                                                                          
         print("fraction: ", float(filtered/total), file=out)
 
-def overlap_cna_snp(vcf_samples, max_CN):
+def overlap_cna_snp(vcf_samples, max_CN, out_dir):
     cna_overlaps = defaultdict(list)
     cn_states_allsites = [] # a list of tuples
     filtered_sites = set()  # sites filtered out because of high CN
-    snps = pbt.BedTool("snps.bed")
+    snps = pbt.BedTool(f"{out_dir}/snps.bed")
     # for each sample in VCF, intersect it's SNVs with sample-specific CNAs
     for sample in vcf_samples:
-        sample_cnas = pbt.BedTool(f"{sample}.bed")    
+        sample_cnas = pbt.BedTool(f"{out_dir}/{sample}.bed")    
         #snps.intersect(sample_cnas, wo=True).saveas(f"snps_cnas_overlap_{sample}.bed")
         bed = snps.intersect(sample_cnas, wo=True)
         for line in bed:
@@ -157,7 +157,7 @@ def main():
     parser = argparse.ArgumentParser(description='Generate input for Decifer using VCF file and HATCHet CNA file')
     parser.add_argument("-V","--vcf_file", required=True, type=str, help="single or multi-sample VCF file")
     parser.add_argument("-C","--cna_file", required=True, type=str, help="HATCHet CNA file: best.seg.ucn ")
-    parser.add_argument("-O","--out_dir", required=False, default="./", type=str, help="directory for outputting files")
+    parser.add_argument("-O","--out_dir", required=True, default="./", type=str, help="directory for outputting files")
     parser.add_argument("-M","--min_depth", required=True, type=int, help="minimum depth PER sample")
     parser.add_argument("-A","--min_alt_depth", required=True, type=int, help="minimum depth of ALT allele in at least one sample")
     parser.add_argument("-N","--max_CN", required=False, default=6, type=int, help="maximum total copy number for each observed clone")
@@ -180,7 +180,7 @@ def main():
     ref_var_depths = compute_ref_var_depths(vcf, FilterDP)
 
     # print BED file for SNPs
-    with open("snps.bed", 'w') as out:
+    with open(f"{args.out_dir}/snps.bed", 'w') as out:
         print("chrom\tstart\tend\tREF\tALT", file=out)
         for chr_label in ref_var_depths:
             pos = chr_label.split(".")
@@ -198,12 +198,12 @@ def main():
         # subtract 1 from start of interval to be compatible with BED format, leave end interval alone
         df.loc[:,'START'] = df['START']-1 
         df = df.drop('SAMPLE', axis=1)
-        df.to_csv(f"{sample}.bed", index=False, sep="\t")
+        df.to_csv(f"{args.out_dir}/{sample}.bed", index=False, sep="\t")
 
     # overlap SNPs with CNA intervals for each sample
     # cna_overlaps[char_label] = list of tuples of CNA info (one tuple for each sample, in same order as vcf.samples)
     # this function also prints the observed CN state trees for the generatestatetrees function
-    cna_overlaps, cn_states_allsites, filtered_sites = overlap_cna_snp(vcf.samples, args.max_CN)
+    cna_overlaps, cn_states_allsites, filtered_sites = overlap_cna_snp(vcf.samples, args.max_CN, args.out_dir)
     
     # sites may have unique CN states that are duplicate; set them to find unique CN states across sites
     print_unique_CN_states(cn_states_allsites, args.max_CN, args.out_dir)
@@ -211,9 +211,9 @@ def main():
 
     print_output(vcf, ref_var_depths, cna_overlaps, args.out_dir) 
 
-    os.system(f"rm snps.bed")
+    os.system(f"rm {args.out_dir}/snps.bed")
     for sample in vcf.samples:
-        os.system(f"rm {sample}.bed")
+        os.system(f"rm {args.out_dir}/{sample}.bed")
     
 if __name__ == '__main__':
   main()
