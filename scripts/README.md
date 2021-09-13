@@ -38,6 +38,8 @@ Lastly, the sample names in the CNA file and the VCF file (containing SNVs) must
 5. `filtered_stats.txt`: Shows the total number and the fraction of SNV sites that were filtered out due to the `MAX_CN` value.
 
 
+## Adressing the "Skipping mutation warning"
+
 When you run decifer, you may see an error very early on that looks like the following:
 
 ```
