@@ -149,7 +149,7 @@ DeCiFer can use the following additional and optional input data:
 <a name="output"></a>
 ### Output
 
-DeCiFer's output corresponds to a single TSV file encoding a dataframe where every row corresponds to an input mutation and with the following fields:
+DeCiFer's main output file (ending with `.output.tsv`) corresponds to a single TSV file encoding a dataframe where every row corresponds to an input mutation and with the following fields:
 
 | Name | Description |
 |------|-------------|
@@ -160,11 +160,15 @@ DeCiFer's output corresponds to a single TSV file encoding a dataframe where eve
 | `cluster` | Unique identifier of the inferred mutation cluster |
 | `state_tree` | Inferred state tree defined as a `->`-separated edge list of genotypes |
 | `cluster` | Unique identifier of the inferred mutation cluster |
-| `true_cluster_DCF{SAMPLE}` | Inferred true cluster DCF of the mutation in every sample with index `{SAMPLE}`; when execute in CCF-mode, DCF will be CCF instead |
+| `true_cluster_DCF{SAMPLE}` | Inferred true cluster DCF of the mutation in every sample with index `{SAMPLE}`; when execute in CCF-mode, DCF will be CCF instead; these values take the form `cluster center;(lower cluster CI, upper cluster CI)` |
 | `point_estimate_DCF{SAMPLE}` | Point estimate of the mutation DCF in every sample with index `{SAMPLE}`; when execute in CCF-mode, DCF will be CCF instead |
 | `cmm_CCF{SAMPLE}` | Inferred CCF of the mutation under the previous CMM assumption in every sample with index `{SAMPLE}` |
 | `Explained` | `;`-separated list of all the clusters to which the mutation could be assigned |
 | `LHs` | `;`-separated list of the negative-log likelihoods of assigned the mutation to all clusters in `Explained` |
+
+For the column containing the `true_cluster_DCF`, the CIs correspond to 95% confidence intervals that have been corrected for multiple tests. Specifically, for each cluster, we find the lower CI by finding the X=[0.025/(number of hypothesis tests)] quantile, where the number of tests corresponds to (number of clusters)\*(number of samples for patient). The same procedure is used for the upper CI, by finding the quantile that corresponds to 1-X.
+
+These cluster CIs may also be found in the output file ending in `.cluster.CIs.tsv`. This file contains this information in a more consensed format, reporting only the upper and lower CIs for each cluster for each sample (in column `f_lb` and `f_ub` respectively).
 
 <a name="requirements"></a>
 ### System requirements
