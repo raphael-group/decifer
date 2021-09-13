@@ -33,7 +33,7 @@ Lastly, the sample names in the CNA file and the VCF file (containing SNVs) must
 
 1. `decifer.input.tsv`: This is the primary input file for decifer.
 2. `decifer.purity.tsv`: These are the per-sample purity estimates for decifer.
-3. `cn_states.txt`: The unique copy-number states observed across all subclones at a site. E.g. a line with `2,2;1,1` indicates a SNV site in which one subclone has 2 copies of both maternal and paternal alleles (WGD) whereas the other subclone is diploid with only one copy of each.
+3. `cn_states.txt`: The unique copy-number states observed across all subclones at a site. E.g. a line with `2,2;1,1` indicates a SNV site in which one subclone has 2 copies of both maternal and paternal alleles (WGD) whereas the other subclone is diploid with only one copy of each. We provide an example of what this file might look like in this directory.
 4. `filtered_sites.txt`: A list of sites, one per line, that were filtered due to the value specified for `MAX_CN`. Each site has the format `chromosome.position.REF_allele.ALT_allele`. This list is provided to see if any important sites (e.g. for your biological story) were filtered out even before the decifer analysis.
 5. `filtered_stats.txt`: Shows the total number and the fraction of SNV sites that were filtered out due to the `MAX_CN` value.
 
@@ -42,7 +42,7 @@ When you run decifer, you may see an error very early on that looks like the fol
 
 ```
 decifer/src/decifer/mutation.py:158: UserWarning: Skipping mutation ###: State tree file does not contain state trees for the set of copy-number states that affect mutation ###.
- To generate state trees, see documentation for `generatestatetrees`, included in the C++ component of DeCiFe
+ To generate state trees, see documentation for `generatestatetrees`, included in the C++ component of DeCiFer
  ```
 
 While the state tree file should accomodate many users, there could be exceptions. If you observe this message for many SNV sites, you may generate a state tree file that is tailored to the CN states and subclones observed in your data using the following command:
@@ -51,5 +51,5 @@ While the state tree file should accomodate many users, there could be exception
 generatestatetrees cn_states.txt > my_state_trees.txt
 ```
 
-Where the `cn_states.txt` is the output file mentioned above and `my_state_trees.txt` is any file name of your choosing to store the state trees. Then, re-run decifer using the `--statetrees my_state_trees.txt` option, specifying the state tree file you just created.
+Where the `cn_states.txt` is the output file mentioned above and `my_state_trees.txt` is any file name of your choosing to store the state trees. Then, re-run decifer using the `--statetrees my_state_trees.txt` option, specifying the state tree file you just created. Please note that, when generating the `cn_states.txt` with `vcf_2_decifer.py`, if the value used for `MAX_CN` is greater than 6, the `generatestatetrees` function may take a very long time.
 
