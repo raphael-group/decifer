@@ -47,7 +47,7 @@ decifer/src/decifer/mutation.py:158: UserWarning: Skipping mutation ###: State t
  To generate state trees, see documentation for `generatestatetrees`, included in the C++ component of DeCiFer
  ```
 
-While the state tree file should accomodate many users, there could be exceptions. If you observe this message for many SNV sites, you may generate a state tree file that is tailored to the CN states and subclones observed in your data using the following command:
+While the state tree file we provide should accomodate many users, there could be exceptions. If you observe this message for many SNV sites, you may generate a state tree file that is tailored to the CN states and subclones observed in your data using the following command:
 
 ```
 generatestatetrees cn_states.txt > my_state_trees.txt
