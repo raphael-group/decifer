@@ -206,3 +206,7 @@ DeCiFer has been developped and actively mantained by three previous Postdoctora
 - [Gryte Satas](linkedin.com/in/gryte-satas-23a74844) (most of input/output and CF computations for single mutations), Postdoctoral Research Fellow at Memorial Sloan Kettering Cancer Center, NY, USA
 
 - [Mohammed El-Kebir](https://www.el-kebir.net/) (generation of state trees), Assistant Professor in the Computer Science department at the University of Illinois at Urbana-Champaign (UIUC), IL, USA.
+
+Additional active contributors to DeCiFer are:
+
+- [Brian Arnold](https://csml.princeton.edu/people/brian-arnold), DataX Biomedical Data Scientist, Princeton University, USA.
