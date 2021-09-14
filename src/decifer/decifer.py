@@ -18,6 +18,8 @@ from pkg_resources import resource_filename
 from copy import deepcopy
 from multiprocessing import Lock, Value, Pool, Manager
 import numpy as np
+import scipy.integrate as integrate
+from bisect import bisect_left
 
 from fileio import *
 from new_coordinate_ascent import *
@@ -29,7 +31,13 @@ def main():
     args = parse_args()
     sys.stderr.write('\n'.join(['Arguments:'] + ['\t{} : {}'.format(a, args[a]) for a in args]) + '\n')
     mutation_data = read_in_test_file(args["input"])
-    num_samples = len(mutation_data['sample_label'].unique())
+    
+    #create dictionary of sample indices and labels for printing later
+    sample_ids = { int(i[0]) : i[1] for i in zip(mutation_data['#sample_index'].unique(), mutation_data['sample_label'].unique()) }
+    for i in sample_ids:
+        print i, sample_ids[i]
+    num_samples =  len(sample_ids)
+
     if args['mink'] < 2 + num_samples:
         args['mink'] = 2 + num_samples
         sys.stderr.write('## The minimum number of clusters has been increased to {} to account for fixed clusters!\n'.format(args['mink']))
@@ -49,7 +57,7 @@ def main():
         run_coordinator_binary(mutations, num_samples, purity, args, record if args['record'] else None)
     else:
         print "Using iterative model selection"
-        run_coordinator_iterative(mutations, num_samples, purity, args, record if args['record'] else None)
+        run_coordinator_iterative(mutations, sample_ids, num_samples, purity, args, record if args['record'] else None)
     if args['record']:
         with open('record.log.tsv', 'w') as o:
             o.write('#NUM_CLUSTERS\tRESTART\tSEED\tITERATION\tOBJECTIVE\n')
@@ -126,7 +134,7 @@ def read_purity(purity_file, purity):
     return purity
 
 
-def run_coordinator_iterative(mutations, num_samples, purity, args, record):
+def run_coordinator_iterative(mutations, sample_ids, num_samples, purity, args, record):
     mink, maxk, maxit, prefix, restarts, ubleft, J = unpck(args)
     jobs = [(x, k, np.random.randint(low=0, high=2**10)) for x in xrange(restarts) for k in xrange(mink, maxk+1)]
     manager, shared = setup_shared()
@@ -158,9 +166,135 @@ def run_coordinator_iterative(mutations, num_samples, purity, args, record):
         print '\t'.join(map(str, [k, objs[k], elbow[k] if k < maxk else 'NaN', selected==k]))
 
     C, bmut, clus, conf, objs = map(lambda D : shared[D][best[selected]], ['C', 'bmut', 'clus', 'conf', 'objs'])
-    write_results(prefix, C, clus, conf, bmut, purity, args['betabinomial'], 'CCF' if args['ccf'] else 'DCF')
+    
+    # C is list of lists; rows are samples, columns are cluster IDs, values are CCFs
+    #CIs = [[()]*len(C[i]) for i in range(len(C))] # list of lists to store CIs, same structure as C
+    CIs, PDFs = compute_CIs_mp(set(clus), bmut, num_samples, args['betabinomial'], J, C)
+
+    """
+    # FOR TESTING
+    #print_PDF(set(clus), bmut, num_samples, args['betabinomial'], C)
+    #print_feasibleVAFs(set(clus), bmut, num_samples, args['betabinomial'], C)
+    with open("pdfs.txt", 'w') as f:
+        for c in set(clus):
+            for s in range(num_samples):
+                i = str(c) + "_" + str(s) + " "
+                f.write(i)
+                f.write(" ".join( list(map(str, PDFs[s][c]))))
+                f.write("\n")
+    with open("max_dcfs.txt", 'w') as f:
+        for c in set(clus):
+            for s in range(num_samples):
+                print c, s, C[s][c], CIs[s][c][0], CIs[s][c][1]
+                f.write(" ".join( list(map(str, [c, s, C[s][c], CIs[s][c][0], CIs[s][c][1]] ))))
+                f.write("\n")
+    """
+
+    write_results_CIs(prefix, num_samples, clus, sample_ids, CIs) 
+
+    write_results(prefix, C, CIs, clus, conf, bmut, purity, args['betabinomial'], 'CCF' if args['ccf'] else 'DCF')
     #write_results_decifer_format(bmut, clus, prefix, selected, num_samples, C)
 
+def print_feasibleVAFs(cluster_ids, muts, num_samples, bb, C):
+    with open("feasibleVAFs.txt", 'w') as f:
+        for i in cluster_ids:
+            mut = filter(lambda m : m.assigned_cluster == i, muts) 
+            for s in range(0,num_samples):
+                lowers = [m.assigned_config.cf_bounds(s)[0] for m in mut]
+                uppers = [m.assigned_config.cf_bounds(s)[1] for m in mut]
+                f.write(" ".join(list(map(str, [i, s, max(lowers), min(uppers)]))))
+                f.write("\n")
+
+def print_PDF(cluster_ids, muts, num_samples, bb, C):
+    with open("pdfs.txt", 'w') as f:
+        for i in cluster_ids:
+            mut = filter(lambda m : m.assigned_cluster == i, muts) 
+            for s in range(0,num_samples):
+                max_dcf = C[s][i] # dcf value that maximizes posterior for this sample and cluster ID
+                delta = (-1*objective(max_dcf, mut, s, bb))-2
+                #prob = (lambda x: math.exp(-1*(x+delta))) # convert neg log to probability
+                prob = (lambda x: math.exp(-1*(x))) # convert neg log to probability
+                l = []
+                for j in np.linspace(0, 1, 1000):
+                   l.append(prob(objective(j, mut, s, bb)))
+                total = np.sum(l)
+                l = [x/total for x in l]
+                f.write(" ".join(list(map(str, [i,s] + l))))
+                f.write("\n")
+
+
+def compute_CIs_mp(cluster_ids, muts, num_samples, bb, J, C):
+    CIs = [[()]*len(C[i]) for i in range(len(C))] # list of lists to store CIs, same structure as C
+    PDFs = [[()]*len(C[i]) for i in range(len(C))] # list of lists to store CIs, same structure as C
+    num_tests = float(len(cluster_ids)*num_samples) # bonferroni correction for multiple hypothesis testing
+    #C[s][i] is the putative mode of the pdf
+    jobs = [(c, s, muts, num_tests, bb) for c in cluster_ids for s in range(num_samples)]
+    pool = Pool(processes=min(J, len(jobs)))
+    results = pool.imap_unordered(CI, jobs)
+    pool.close()
+    pool.join()
+    for i in results:
+        clust, samp, lower, upper, pdf = i[0], i[1], i[2], i[3], i[4]
+        CIs[samp][clust] = (lower,upper)
+        PDFs[samp][clust] = pdf
+
+    return CIs, PDFs 
+
+def CI(job):
+    """
+    Computes CIs for a sample-cluster combination
+
+    There have been two issues in dealing with the "objective" function to characterize the PDF of CCF/DCF values, needed for obtaining CIs.
+    1.) converting -log(unnormalized probability) from objective to an unnormalized probability produced prohibitively large numbers (-log numbers 
+    are very negative such that e^-x huge), so we rescaled all values based on the most negative -log value observed from many samples from objective
+    (previously we tried using cluster centers, but these do not succeed in finding mode especially when PDF is extremely narrow/disjoint from
+    infeasible VAF values truncating distribution).
+    2.) across the support of the CCF/DCF PDF distribution, some sample-cluster combinations have 0 values everywhere except an extremely narrow range,
+    so trying to integrate approximately with functions like scipy.integrate.quad to get a normalization constant produces 0, because all sampled
+    points yield 0.
+
+    Thus, we have used a brute force method where we sample num_pts from the objective function, and use these to create and cahracterize the PDF of
+    the CCF/DCF distribution.
+    """
+    c, s, muts, num_tests, bb = job # c is cluster, s is sample
+    mut = filter(lambda m : m.assigned_cluster == c, muts) 
+    
+    num_pts = 10000
+    grid = [objective(j, mut, s, bb) for j in np.linspace(0, 1, num_pts)]
+    min_log = min(grid)
+    delta = (-1*min_log)-2      # constant to make -log(pdf) values less negative
+    prob = (lambda x: math.exp(-1*(x+delta)))           # convert -log(pdf) to unnormalized probability
+    total = sum([prob(x) for x in grid])                # unnormalized probabilities across support
+    pdf = [prob(x)/total for x in grid]                 # normalized probabilities across support
+    cdf = np.cumsum(pdf)
+
+    low_ci = 0.025/num_tests                            # divide the desired CI quantile by the number of tests, bonferonni correction
+    high_ci = 1 - low_ci
+
+    low_index = take_closest(cdf, low_ci)
+    high_index = take_closest(cdf, high_ci)
+
+    l = float(low_index)/num_pts
+    u = float(high_index)/num_pts
+
+    return (c, s, l, u, pdf)
+
+def take_closest(myList, myNumber):
+    """
+    Assumes myList is sorted. Returns closest value to myNumber.
+    If two numbers are equally close, return the smallest number.
+    """
+    pos = bisect_left(myList, myNumber)
+    if pos <= 0:
+        return 0
+    if pos >= len(myList):
+        return pos-1
+    before = myList[pos - 1]
+    after = myList[pos]
+    if after - myNumber < myNumber - before:
+        return pos 
+    else:
+        return pos-1
 
 def run_coordinator_binary(mutations, num_samples, purity, args, record):
     L, R, maxit, prefix, restarts, ubleft, J = unpck(args)

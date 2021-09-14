@@ -43,12 +43,13 @@ def read_in_test_file(filename):
         df.columns = header
     return df
 
-def write_results(prefix, C, mut_cluster_assignments, mut_config_assignments, mutations, purity, bb, kind):
+def write_results(prefix, C, CIs, mut_cluster_assignments, mut_config_assignments, mutations, purity, bb, kind):
     with open('{}.output.tsv'.format(prefix), 'w') as out:
         out.write('mut_index\t'+"\t".join(['VAR_{}'.format(i) for i in range(len(C))]+['TOT_{}'.format(i) for i in range(len(C))])+'\tcluster\tstate_tree\t'+"\t".join(['true_cluster_{}{}'.format(kind, i) for i in range(len(C))] + ['point_estimate_{}{}'.format(kind, i)  for i in range(len(C))] + ['cmm_CCF{}'.format(i) for i in range(len(C))]) + '\tExplained\tLHs' + '\n')
         for mut, clust in zip(mutations, mut_cluster_assignments):
             label = mut.label
-            CF = [c[clust] for c in C]
+            #CF = [c[clust] for c in C]
+            CF = [ ";".join([str(C[i][clust]), str(CIs[i][clust]).replace(" ", "")]) for i in range(len(C))]
             var = mut.a
             VAR = [v for v in var]
             tot = mut.d
@@ -105,3 +106,18 @@ def write_results_decifer_format(mutations, mut_cluster_assignments, prefix, num
 def write_results_BIC(bic, ll, num_clusters, prefix):
     with open('{}.bic'.format(prefix), 'a') as out:
         out.write('\t'.join(map(str,[num_clusters, ll, bic])) + '\n')
+
+def write_results_CIs(prefix, num_samples, clus, sample_ids, CIs):
+    with open('{}.cluster.CIs.tsv'.format(prefix), 'w') as f:
+        f.write(" ".join( [str(num_samples), "#anatomical sites", "\n"] ))
+        f.write(" ".join( [str(num_samples), "#samples", "\n"] ))
+        f.write(" ".join( [str(len(set(clus))), "#mutation clusters", "\n"] ))
+        header = ["#sample_index", "sample_label", "anatomical_site_index", "anatomical_site_label", "cluster_index", "cluster_label", "f_lb", "f_ub", "\n"]
+        f.write("\t".join(header))
+        for sample_index, sample_label in sample_ids.items():
+            for cluster_index, cluster_name in enumerate(set(clus)):
+                info = [sample_index, sample_label]
+                info.extend([sample_index, sample_label]) # using these as anatomical index and anatomical name, for now
+                info.extend( [cluster_index, cluster_name] )
+                info.extend( [CIs[sample_index][cluster_name][0], CIs[sample_index][cluster_name][1], "\n"])
+                f.write("\t".join(list(map(str, info))))

@@ -135,6 +135,8 @@ DeCiFer requires two input data:
 
 2. Input tumour purity in a two-column tab-separated file where every row `SAMPLE-INDEX   TUMOUR-PURITY` defines the tumour purity `TUMOUR-PURITY` of a sample with index `SAMPLE-INDEX`.
 
+For generating the input files for DeCiFer, please see the [scripts](/scripts) directory for more information.
+
 <a name="optionaldata"></a>
 ### Optional input data
 
@@ -142,12 +144,12 @@ DeCiFer can use the following additional and optional input data:
 
 1. Precision parameters for fitting beta-binomial distributions when clustering mutations. Specifically, this is a two-column tab-separated file where every row `SAMPLE-INDEX   PRECISION` defines the precision parameter `PRECISION` of the beta binomial distribution of a sample with index `SAMPLE-INDEX`. When this optional file is not provided, DeCiFer will fit a binomial distribution instead. This file can be estimated by using the command `decifer_fit`, whose usage is described in the corresponding [manual](man/man-decifer-fit.md).
 
-2. File containing the set of all possible state trees evaluated by DeCiFer. State trees have been generated for the set of most common copy numbers, however a dataset might have a combination of copy numbers which has not been included. In this case, the user can use the command `generatestatetrees` to generate all the state trees needed for its dataset, following the instructions in the corresponding [manual](man/man-decifer-manual.md).
+2. File containing the set of all possible state trees evaluated by DeCiFer. State trees have been generated for the set of most common copy numbers, however a dataset might have a combination of copy numbers which has not been included. In this case, the user can use the command `generatestatetrees` to generate all the state trees needed for their dataset, for instance, following the instructions in the [scripts](/scripts) directory. The script in this directory not only generates input files for decifer, but also a file called `cn_states.txt` that lists all the unique CN states for your data. This file may be used with `generatestatetrees` as shown in the [scripts](/scripts) directory under the section "Adressing the \"Skipping mutation warning\"".
 
 <a name="output"></a>
 ### Output
 
-DeCiFer's output corresponds to a single TSV file encoding a dataframe where every row corresponds to an input mutation and with the following fields:
+DeCiFer's main output file (ending with `.output.tsv`) corresponds to a single TSV file encoding a dataframe where every row corresponds to an input mutation and with the following fields:
 
 | Name | Description |
 |------|-------------|
@@ -158,11 +160,15 @@ DeCiFer's output corresponds to a single TSV file encoding a dataframe where eve
 | `cluster` | Unique identifier of the inferred mutation cluster |
 | `state_tree` | Inferred state tree defined as a `->`-separated edge list of genotypes |
 | `cluster` | Unique identifier of the inferred mutation cluster |
-| `true_cluster_DCF{SAMPLE}` | Inferred true cluster DCF of the mutation in every sample with index `{SAMPLE}`; when execute in CCF-mode, DCF will be CCF instead |
+| `true_cluster_DCF{SAMPLE}` | Inferred true cluster DCF of the mutation in every sample with index `{SAMPLE}`; when execute in CCF-mode, DCF will be CCF instead; these values take the form `cluster center;(lower cluster CI, upper cluster CI)` |
 | `point_estimate_DCF{SAMPLE}` | Point estimate of the mutation DCF in every sample with index `{SAMPLE}`; when execute in CCF-mode, DCF will be CCF instead |
 | `cmm_CCF{SAMPLE}` | Inferred CCF of the mutation under the previous CMM assumption in every sample with index `{SAMPLE}` |
 | `Explained` | `;`-separated list of all the clusters to which the mutation could be assigned |
 | `LHs` | `;`-separated list of the negative-log likelihoods of assigned the mutation to all clusters in `Explained` |
+
+For the column containing the `true_cluster_DCF`, the CIs correspond to 95% confidence intervals that have been corrected for multiple tests. Specifically, for each cluster, we find the lower CI by finding the X=[0.025/(number of hypothesis tests)] quantile, where the number of tests corresponds to (number of clusters)\*(number of samples for patient). The same procedure is used for the upper CI, by finding the quantile that corresponds to 1-X.
+
+These cluster CIs may also be found in the output file ending in `.cluster.CIs.tsv`. This file contains this information in a more consensed format, reporting only the upper and lower CIs for each cluster for each sample (in column `f_lb` and `f_ub` respectively).
 
 <a name="requirements"></a>
 ### System requirements

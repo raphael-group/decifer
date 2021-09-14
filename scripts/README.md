@@ -1,39 +1,57 @@
 # Script for creating DeCiFer input
 
-DeCiFer uses information about copy-number aberrations (CNAs) and single-nucleotide variants (SNVs) to compute descendant cell fractions, but it does not itself quantify CNAs or call SNVs from sequencing data. Thus, users must employ other programs to get this information, which can then be combined into correct input files for DeCiFer using the `create_input.ipynb` python [notebook](./create_input.ipynb) in this directory.
+DeCiFer uses information about copy-number aberrations (CNAs) and single-nucleotide variants (SNVs) to compute descendant cell fractions, but it does not itself quantify CNAs or call SNVs from sequencing data. Thus, users must employ other programs to get this information, which can then be combined into correct input files for DeCiFer using the `vcf_2_decifer.py` script in this directory.
 
-Here we quantify CNAs using [HATCHet](https://github.com/raphael-group/hatchet) and call SNVs using [varscan](http://varscan.sourceforge.net/).
+### CNA calls
 
-## Step 1
+We quantify CNAs using [HATCHet](https://github.com/raphael-group/hatchet), although you may use any program to identify CNAs as long as you have a file of CNAs with the same format as `best.seg.ucn` (HATCHet output file) in this directory.
 
-To generate SNV information in the correct format for `create_input.ipynb`, please use the following sequence of commands to use varscan's somatic function, where variables within curly brackets get replaced with the appropriate file name:
-```
-# In accordance with the standard varscan workflow, first generate mpileup files
-samtools mpileup -f {reference_sequence.fa} -q 1 {tumor_file.bam} > {tumor.mpileup}
-samtools mpileup -f {reference_sequence.fa} -q 1 {normal_file.bam} > {normal.mpileup}
-# Run varscan to identify somatic SNPs in the tumor
-varscan somatic {normal.mpileup} {tumor.mpileup} {base_name}
-```
+### SNV calls
 
-and varscan should create two files per tumor sample, starting with `base_name`, with extensions `.snp` and `.indel`. In this folder, we provide an example (`tumor.snp`) of what this `.snp` file should look like, as this file is used by `create_input.ipynb`.
+Our `vcf_2_decifer.py` script takes the CNA calls mentioned above along with SNV calls in the standard VCF format to generate decifer input. This VCF must be multi-sample, meaning read depth information for reference and alternate alleles is available for **all** tumor samples (from the same patient) at every polymorphic site. In other words, if an SNV was detected in one tumor sample but not in a second tumor sample from the same patient, we still need read depth for these allele in all samples at this SNV site.
 
-## Step 2
+We have had excellent results using [Mutect2](https://gatk.broadinstitute.org/hc/en-us/articles/360035531132--How-to-Call-somatic-mutations-using-GATK4-Mutect2) and [Strelka2](https://github.com/Illumina/strelka/blob/v2.9.x/docs/userGuide/README.md) to call SNVs, as both programs are capable of calling SNVs for all tumor samples present from the same patient. See [here](https://gatk.broadinstitute.org/hc/en-us/articles/360037593851-Mutect2) for multi-sample (or joint) calling with Mutect2, and [here](https://github.com/Illumina/strelka/issues/59) for multi-sample calling with Strelka2. We usually consider SNVs detected by both programs for downstream analyses.
 
-Additionally, `create_input.ipynb` requires a pileup file for each tumor sample independently. This may be obtained using [bcftools](http://samtools.github.io/bcftools/bcftools.html) and using the outputs of varscan obtained from all samples. To get these pileups, one for each tumor sample, use the following bcftools command:
+If you have your SNV data in MAF format, please use this [script](https://github.com/mskcc/vcf2maf/blob/main/maf2vcf.pl) created by the MSKCC to convert from MAF to VCF. However, as stated above, for each patient your MAF files still need depth information (for reference and alternate alleles) for all tumor samples at each SNV site, not just the samples for which the SNV was called.
+
+
+## Using `vcf_2_decifer.py`
+
+This python script uses two other python packages: pybedtools and cyvcf2. Before running, you can create a conda environment to install these:
 
 ```
-bcftools mpileup {tumor_file.bam} -f {reference_sequence.fa} -T <(cat  {tumor.snp} ... {tumorN.snp} | cut -f1,2 | sort -k2,2 -k1,1 | uniq | grep -v position) -a INFO/AD -Ou | \
-bcftools query -f'%CHROM\t%POS\t%REF,%ALT\t%AD\n' > {tumor.mpileup.tsv} 
+conda create -n vcf_bedtools pybedtools cyvcf2 pandas -y
+conda activate vcf_bedtools
+python vcf_2_decifer.py [OPTIONS]
 ```
 
-This should create a file with an extension `.mpileup.tsv`, and we provide an example (`tumor.mpileup.tsv`) of what this file should look like in this directory.
+Use `python vcf_2_decifer.py --help` to see the options. Options `MIN_DEPTH` and `MIN_ALT_DEPTH` may be set to, for instance, 8 and 3, respectively, for WGS data. These values should be much higher for WES/WXS data, depending on your sequencing depths. We recommend setting the `MAX_CN` to 6, such that sites containing a clone with a total copy number greater than 6 will get excluded.
 
-## Step 3
+Lastly, the sample names in the CNA file and the VCF file (containing SNVs) must agree with one another!
 
-Lastly, one needs to provide information about CNAs to `create_input.ipynb`. We use the output from HATCHET, a file called `best.seg.ucn`. An example of what this file looks like is included in this directory. 
+### `vcf_2_decifer.py` output
 
-Note that if multiple tumor samples are used per patient, one needs to call SNVs and generate pileups (explained above) for each tumor sample from the patient. However, HATCHet is run on all tumor samples from the same patient simultaneously and generates a single `best.seg.ucn` file per patient. Thus, to use `create_input.ipynb` on a single patient for which *n* tumor samples are available, one needs *n* `.snp` files, *n* `.mpileup.tsv` files, and a single `best.seg.ucn` file.
+1. `decifer.input.tsv`: This is the primary input file for decifer.
+2. `decifer.purity.tsv`: These are the per-sample purity estimates for decifer.
+3. `cn_states.txt`: The unique copy-number states observed across all subclones at a site. E.g. a line with `2,2;1,1` indicates a SNV site in which one subclone has 2 copies of both maternal and paternal alleles (WGD) whereas the other subclone is diploid with only one copy of each. We provide an example of what this file might look like in this directory.
+4. `filtered_sites.txt`: A list of sites, one per line, that were filtered due to the value specified for `MAX_CN`. Each site has the format `chromosome.position.REF_allele.ALT_allele`. This list is provided to see if any important sites (e.g. for your biological story) were filtered out even before the decifer analysis.
+5. `filtered_stats.txt`: Shows the total number and the fraction of SNV sites that were filtered out due to the `MAX_CN` value.
 
-## Step 4
 
-Use `create_input.ipynb`!
+## Adressing the "Skipping mutation warning"
+
+When you run decifer, you may see an error very early on that looks like the following:
+
+```
+decifer/src/decifer/mutation.py:158: UserWarning: Skipping mutation ###: State tree file does not contain state trees for the set of copy-number states that affect mutation ###.
+ To generate state trees, see documentation for `generatestatetrees`, included in the C++ component of DeCiFer
+ ```
+
+While the state tree file we provide should accomodate many users, there could be exceptions. If you observe this message for many SNV sites, you may generate a state tree file that is tailored to the CN states and subclones observed in your data using the following command:
+
+```
+generatestatetrees cn_states.txt > my_state_trees.txt
+```
+
+Where the `cn_states.txt` is the output file mentioned above and `my_state_trees.txt` is any file name of your choosing to store the state trees. Then, re-run decifer using the `--statetrees my_state_trees.txt` option, specifying the state tree file you just created. Please note that, when generating the `cn_states.txt` with `vcf_2_decifer.py`, if the value used for `MAX_CN` is greater than 6, the `generatestatetrees` function may take a very long time.
+

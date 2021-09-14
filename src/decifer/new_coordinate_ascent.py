@@ -14,6 +14,8 @@ from scipy.stats import beta
 from scipy.special import betaln
 from scipy.special import gammaln
 from scipy.optimize import minimize_scalar
+from scipy.optimize import minimize
+import time
 
 from fileio import *
 from mutation import *
@@ -87,7 +89,13 @@ def optimize_assignments(mutations, C, num_samples, num_clusters, bb, last=False
 
 
 def optimize_cluster_centers(mutations, num_samples, C_old, V_old, num_clusters, bb, purity):
-    minim = (lambda muti, sam : minimize_scalar(objective, args=(muti, sam, bb), method='bounded', bounds=[0,1], options={'xatol' : TOLERANCE}).x)
+    vmin = (lambda muti, sam: max( [max( [m.assigned_config.cf_bounds(sam)[0] for m in muti] ) - 0.05, 0.0]))
+    vmax = (lambda muti, sam: min( [min( [m.assigned_config.cf_bounds(sam)[1] for m in muti] ) + 0.05, 1.0]))
+    #minim = (lambda muti, sam : minimize_scalar(objective, args=(muti, sam, bb), method='brent', options={'brack' : (vmin(muti,sam),vmax(muti,sam)), 'xatol' : TOLERANCE}).x)
+    minim = (lambda muti, sam : minimize_scalar(objective, args=(muti, sam, bb), method='bounded', bounds=[vmin(muti,sam),vmax(muti,sam)], options={'xatol' : TOLERANCE}).x)
+    #minim = (lambda muti, sam : minimize(objective, args=(muti, sam, bb), method='SLSQP', x0=(((vmin(muti,sam)+vmax(muti,sam))/2.0),), bounds=((vmin(muti,sam),vmax(muti,sam)),), tol=TOLERANCE).x[0])
+    #minim = (lambda muti, sam : minimize_scalar(objective, args=(muti, sam, bb), method='bounded', bounds=[0,1], options={'xatol' : TOLERANCE}).x)
+    #minim = (lambda muti, sam : minimize_scalar(objective, args=(muti, sam, bb), method='golden', bounds=[0,1], options={'xatol' : TOLERANCE}).x)
     getmi = (lambda muti, sam, x : (x, objective(x, muti, sam, bb) if len(muti) > 0 else 0.0))
     caseg = (lambda muti, sam : getmi(muti, sam, minim(muti, sam) if len(muti) > 0 else np.random.rand()))
     cases = (lambda muti, sam, i : getmi(muti, sam, minim(muti, sam) if (i - 2) == sam and len(muti) > 0 else 0.0))
@@ -126,7 +134,17 @@ def compute_pdfs(_VS, _AS, _BS, _BB=None, check=False):
      VS[VS > (1.0 - SEQERROR)] = 1.0 - SEQERROR
      RS = np.full(M.shape[0], np.NINF)
      if _BB is None:
-         RS[M] = beta.logpdf(VS[M], AS[M], BS[M])
+        """
+        x = beta.logpdf(VS[M], AS[M], BS[M])
+        y = VS[M]
+        print np.ndim(x)
+        print str(x)
+        print str(y)
+        if np.ndim(x) > 1:
+            tmp = str(y) + "\n" + str(x)
+            sys.exit(tmp)
+        """
+        RS[M] = beta.logpdf(VS[M], AS[M], BS[M])
      else:
          NS = AS[M] + BS[M]
          KS = AS[M]
