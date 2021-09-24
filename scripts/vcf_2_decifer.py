@@ -86,9 +86,10 @@ def print_purities(cna_df, sample_index, num_samples, outdir):
 
 def filter_high_CN_sites(cn_states_persite, max_CN):
     # returns 0 if site has CN state greater than max_CN
-    # cn_states_persite is a list of 2-tuples, CN states of maternal/paternal chromosomes
+    # cn_states_persite is a list of str "A|B", CN states of maternal/paternal chromosomes
     for i in cn_states_persite:
-        if int(i[0]) + int(i[1]) > max_CN:
+        j = i.split("|")
+        if int(j[0]) + int(j[1]) > max_CN:
             return 0 
     return 1
 
@@ -131,26 +132,26 @@ def overlap_cna_snp(vcf_samples, max_CN, out_dir):
             # CNA info starts with CHR, START, END, which you don't want, so start at index 8
             # exclude the last index, since bedtools adds this, the number of bp of overlap
             char_label = ".".join([line[0], line[2], line[3], line[4]])
-            cna_info = line[8:-1]
-            cna_info_parsed = []
-            cn_states_persite = []
-            for i in cna_info:
-                if "|" in i:
-                    # this is an allele-specific CN state, int CN|int CN
-                    cn = i.split("|")
-                    cna_info_parsed.extend(cn)
-                    # get all CN states, we'll filter out duplicates later
-                    cn_states_persite.append( tuple(cn) )
-                else:
-                    cna_info_parsed.append(i)
+            cns = line[8:-1:2] # copy-number states, string[start:end:step]
+            props = line[9:-1:2] # copy-number proportions
+            if len(cns) != len(props):
+               sys.exit("CNA file not formatted correctly!") 
 
-            if filter_high_CN_sites(cn_states_persite, max_CN):
-                cna_overlaps[char_label].append( tuple(cna_info_parsed) )
+            cn_info = defaultdict(float) # dict with cn_info["A|B"] = proportion
+            for c, p in zip(cns, props):
+                cn_info[c] += float(p) # this collapses nonunique CN states
+
+            # returns 0 if CN state too high
+            if filter_high_CN_sites(cn_info.keys(), max_CN):
+                # store results, converting from dict to a list for later printing
+                cna_info = []
+                [ cna_info.extend( [c.split("|")[0], c.split("|")[1], cn_info[c]] ) for c in cn_info ]
+                cna_overlaps[char_label].append( cna_info )
             else:
                 filtered_sites.add( char_label )
             # get collection of unique CN states for this SNV site
-            cn_states_allsites.append( tuple(set(cn_states_persite)) )
-
+            tuple_states = [(c.split("|")[0], c.split("|")[1]) for c in cn_info]
+            cn_states_allsites.append( tuple(set(tuple_states)) )
 
     return cna_overlaps, cn_states_allsites, filtered_sites
 

@@ -8,6 +8,7 @@ out
 err
 run2.sh
 run.sh
+scripts/tests*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
