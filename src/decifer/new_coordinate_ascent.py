@@ -17,10 +17,10 @@ from scipy.optimize import minimize_scalar
 from scipy.optimize import minimize
 import time
 
-from fileio import *
-from mutation import *
-from config import *
-from mutation import *
+from .fileio import *
+from .mutation import *
+from .config import *
+from .mutation import *
 #from visualize import *
 
 
@@ -32,8 +32,8 @@ SEQERROR = 1e-40
 def coordinate_descent(restart, seed, mutations, num_samples, num_clusters, MAX_IT=5, record=None, bb=None, purity=None):
     rest = num_clusters - (2 + num_samples)
     assert rest >= 0, 'Number of clusters is too low!'
-    form = (lambda L, sam : [0.0, purity[sam]] + [purity[sam] if s == sam else 0.0 for s in xrange(num_samples)] + map(lambda v : v / 10.0, list(L)))
-    C = [form(np.random.randint(low=0, high=11, size=rest) if rest > 0 else [], sam) for sam in xrange(num_samples)]
+    form = (lambda L, sam : [0.0, purity[sam]] + [purity[sam] if s == sam else 0.0 for s in range(num_samples)] + map(lambda v : v / 10.0, list(L)))
+    C = [form(np.random.randint(low=0, high=11, size=rest) if rest > 0 else [], sam) for sam in range(num_samples)]
     V, C_old, V_old = None, None, None
     IT = 0
     objs = []
@@ -64,24 +64,24 @@ def coordinate_descent(restart, seed, mutations, num_samples, num_clusters, MAX_
 def optimize_assignments(mutations, C, num_samples, num_clusters, bb, last=False):
 
     def select(m):
-        combs = [(config, clust) for config in m.configs for clust in xrange(num_clusters)]
+        combs = [(config, clust) for config in m.configs for clust in range(num_clusters)]
         if bb is None:
             form = (lambda cf, cl, sam : (cf.cf_to_v(C[sam][cl], sam), m.a[sam]+1, (m.d[sam] - m.a[sam]) + 1))
         else:
             form = (lambda cf, cl, sam : (cf.cf_to_v(C[sam][cl], sam), m.a[sam], m.d[sam] - m.a[sam], bb[sam]))
         grow = (lambda sample : compute_pdfs(*zip(*[form(cb[0], cb[1], sample) for cb in combs])))
-        objs = -np.sum(np.array([grow(sample) for sample in xrange(num_samples)]), axis=0)
+        objs = -np.sum(np.array([grow(sample) for sample in range(num_samples)]), axis=0)
         best = objs.argmin()
-        assert objs[best] < np.inf, 'A mutation cannot be assigned to any cluster: {},{}\n\t{}\n'.format(m.index, m.label, map(lambda x : '{},{}'.format(x.mut_state, x.other_states), m.configs)) + str([m.configs[0].cf_bounds(sam) for sam in xrange(num_samples)]) + '\n' + str([C[sam][1] for sam in xrange(num_samples)]) + '\n'
+        assert objs[best] < np.inf, 'A mutation cannot be assigned to any cluster: {},{}\n\t{}\n'.format(m.index, m.label, map(lambda x : '{},{}'.format(x.mut_state, x.other_states), m.configs)) + str([m.configs[0].cf_bounds(sam) for sam in range(num_samples)]) + '\n' + str([C[sam][1] for sam in range(num_samples)]) + '\n'
         found = combs.index((m.assigned_config, m.assigned_cluster))
-        before = -sum(compute_pdfs(*zip(*[form(combs[found][0], combs[found][1], sample) for sample in xrange(num_samples)])))
+        before = -sum(compute_pdfs(*zip(*[form(combs[found][0], combs[found][1], sample) for sample in range(num_samples)])))
         assert objs[best] <= before, 'Non scende: {}'.format(C)
         return (float(objs[best]), combs[best][0], combs[best][1])
 
     def update(m, best):
         m.assigned_config = best[1]
         m.assigned_cluster = best[2]
-        for sam in xrange(num_samples):
+        for sam in range(num_samples):
             assert m.assigned_config.cf_bounds(sam)[0] - 0.05 <= C[sam][m.assigned_cluster] < m.assigned_config.cf_bounds(sam)[1] + 0.05, (C[sam][m.assigned_cluster], m.assigned_config.cf_bounds(sam), m.assigned_config.d_to_lam(C[sam][m.assigned_cluster], sam))
         return best[0]
 
@@ -103,8 +103,8 @@ def optimize_cluster_centers(mutations, num_samples, C_old, V_old, num_clusters,
     caseb = (lambda muti, sam, i : cas01(muti, sam, 0.0 if i == 0 else purity[sam]) if i in {0, 1} else cases(muti, sam, i))
     obj_i = (lambda muti, sam, i : caseb(muti, sam, i) if i < 2 + num_samples else caseg(muti, sam))
     selec = (lambda sam, i, R : (C_old[sam][i], V_old[sam][i]) if V_old[sam][i] < R[1] else R)
-    R_sam = (lambda sam : [selec(sam, i, obj_i(filter(lambda m : m.assigned_cluster == i, mutations), sam, i)) for i in xrange(num_clusters)])
-    R_new = [R_sam(sam) for sam in xrange(num_samples)]
+    R_sam = (lambda sam : [selec(sam, i, obj_i(filter(lambda m : m.assigned_cluster == i, mutations), sam, i)) for i in range(num_clusters)])
+    R_new = [R_sam(sam) for sam in range(num_samples)]
     C_new, V_new = map(list, zip(*[map(list, zip(*r)) for r in R_new]))
     return C_new, V_new, sum(el for r in V_new for el in r)
 
@@ -121,7 +121,7 @@ def objective(ci, muti, sample, bb):
 def update_objs(C, mutations, num_samples, num_clusters, bb):
     iobj = (lambda sam, muti, c : objective(c, muti, sam, bb) if len(muti) > 0 else 0.0)
     comp = (lambda sam, i : iobj(sam, filter(lambda m : m.assigned_cluster == i, mutations), C[sam][i]))
-    return [[comp(sam, i) for i in xrange(num_clusters)] for sam in xrange(num_samples)]
+    return [[comp(sam, i) for i in range(num_clusters)] for sam in range(num_samples)]
 
 
 def compute_pdfs(_VS, _AS, _BS, _BB=None, check=False):

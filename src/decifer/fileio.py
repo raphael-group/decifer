@@ -5,7 +5,7 @@ author: gsatas
 date: 2020-05-04
 """
 
-from new_coordinate_ascent import *
+from .new_coordinate_ascent import *
 import pandas as pd
 
 def read_in_state_trees(filename):
@@ -65,13 +65,13 @@ def write_results(prefix, C, CIs, mut_cluster_assignments, mut_config_assignment
 
             explained = []
             lhs = []
-            for cl in xrange(len(C[0])):
+            for cl in range(len(C[0])):
                 if bb is None:
                     form = (lambda cf, sam : (cf.cf_to_v(C[sam][cl], sam), mut.a[sam]+1, (mut.d[sam] - mut.a[sam]) + 1))
                 else:
                     form = (lambda cf, sam : (cf.cf_to_v(C[sam][cl], sam), mut.a[sam], mut.d[sam] - mut.a[sam], bb[sam]))
                 grow = (lambda sample : compute_pdfs(*zip(*[form(cb, sample) for cb in mut.configs])))
-                best = np.min(-np.sum(np.array([grow(sample) for sample in xrange(len(C))]), axis=0))
+                best = np.min(-np.sum(np.array([grow(sample) for sample in range(len(C))]), axis=0))
                 if best < np.inf:
                     explained.append(cl)
                     lhs.append(best)

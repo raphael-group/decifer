@@ -49,9 +49,9 @@ def main():
     sys.stderr.write('The number of retained SNPs is {} over a total of {} SNPs ({:.2%})\n'.format(sel, tot, sel / float(tot)))
     sys.stderr.write('> Fitting Beta-Binomial\n')
     betabinom = fit(baf, overlap, samples, args['restarts'], args['skip'], args['J'])
-    print '#SAMPLE\tPRECISION\tNLH'
+    print('#SAMPLE\tPRECISION\tNLH')
     for sam in sorted(betabinom):
-        print '\t'.join(map(str, [sam, betabinom[sam][0], betabinom[sam][1]]))
+        print('\t'.join(map(str, [sam, betabinom[sam][0], betabinom[sam][1]])))
     sys.stderr.write('> Plotting binomial fit\n')
     set_style()
     plot_binomial(overlap, baf, snps, samples)
@@ -150,7 +150,7 @@ def fit(baf, overlap, samples, R, skip, J):
         bar = ProgressBar(total=R/skip, length=30, verbose=False, lock=Lock(), counter=Value('i', 0))
         bar.progress(advance=False, msg="Started")
         report = (lambda r : bar.progress(advance=True, msg="Completed {} [OBJ: {}]".format(r[0], r[1])))
-        bbopt = min((x for x in pool.imap_unordered(run_brute, xrange(0, R, skip)) if report(x)), key=(lambda x : x[1]))
+        bbopt = min((x for x in pool.imap_unordered(run_brute, range(0, R, skip)) if report(x)), key=(lambda x : x[1]))
         pool.close()
         pool.join()
         opt = minimize_scalar(LH, bracket=(1, R))

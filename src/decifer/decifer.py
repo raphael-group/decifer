@@ -21,8 +21,8 @@ import numpy as np
 import scipy.integrate as integrate
 from bisect import bisect_left
 
-from fileio import *
-from new_coordinate_ascent import *
+from .fileio import *
+from .new_coordinate_ascent import *
 
 
 
@@ -35,7 +35,7 @@ def main():
     #create dictionary of sample indices and labels for printing later
     sample_ids = { int(i[0]) : i[1] for i in zip(mutation_data['#sample_index'].unique(), mutation_data['sample_label'].unique()) }
     for i in sample_ids:
-        print i, sample_ids[i]
+        print(i, sample_ids[i])
     num_samples =  len(sample_ids)
 
     if args['mink'] < 2 + num_samples:
@@ -53,10 +53,10 @@ def main():
         manager = mp.Manager()
         record = manager.list()
     if not args['iterative']:
-        print "Using binary-search model selection"
+        print("Using binary-search model selection")
         run_coordinator_binary(mutations, num_samples, purity, args, record if args['record'] else None)
     else:
-        print "Using iterative model selection"
+        print("Using iterative model selection")
         run_coordinator_iterative(mutations, sample_ids, num_samples, purity, args, record if args['record'] else None)
     if args['record']:
         with open('record.log.tsv', 'w') as o:
@@ -136,7 +136,7 @@ def read_purity(purity_file, purity):
 
 def run_coordinator_iterative(mutations, sample_ids, num_samples, purity, args, record):
     mink, maxk, maxit, prefix, restarts, ubleft, J = unpck(args)
-    jobs = [(x, k, np.random.randint(low=0, high=2**10)) for x in xrange(restarts) for k in xrange(mink, maxk+1)]
+    jobs = [(x, k, np.random.randint(low=0, high=2**10)) for x in range(restarts) for k in range(mink, maxk+1)]
     manager, shared = setup_shared()
     initargs = (mutations, num_samples, maxit, shared, record, args['betabinomial'], purity)
     pool = Pool(processes=min(J, len(jobs)), initializer=init_descent, initargs=initargs)
@@ -144,11 +144,12 @@ def run_coordinator_iterative(mutations, sample_ids, num_samples, purity, args, 
     bar.progress(advance=False, msg="Started")
     report = (lambda r : bar.progress(advance=True, msg="Completed {} for k={} [Iterations: {}]".format(r[0], r[1], r[3])))
     map(report, pool.imap_unordered(run_descent, jobs))
-    best = {k : min(filter(lambda j : j[1] == k, jobs), key=(lambda j : shared['objs'][j])) for k in xrange(mink, maxk+1)}
+    # best[cluster number k] = min objective across runs/restarts
+    best = {k : min(filter(lambda j : j[1] == k, jobs), key=(lambda j : shared['objs'][j])) for k in range(mink, maxk+1)}
 
     #ubleft = .25 * len(mutations) * num_samples * 10
     objs = {k : shared['objs'][best[k]] for k in best}
-    for k in xrange(mink+1, maxk+1):
+    for k in range(mink+1, maxk+1):
         if objs[k - 1] < objs[k]:
             best[k] = best[k - 1]
             objs[k] = objs[k - 1]
@@ -156,14 +157,14 @@ def run_coordinator_iterative(mutations, sample_ids, num_samples, purity, args, 
     left = (lambda k : min((objs[k - 1] - objs[k]) / abs(chk(objs[k - 1])), ubleft) if k > mink else ubleft)
     right = (lambda k : (objs[k] - objs[k+1]) / abs(chk(objs[k])))
 
-    elbow = {k : left(k) - right(k) for k in xrange(mink, maxk)}
+    elbow = {k : left(k) - right(k) for k in range(mink, maxk)}
     if mink < maxk:
-        selected = max(xrange(mink, maxk), key=(lambda k : elbow[k]))
+        selected = max(range(mink, maxk), key=(lambda k : elbow[k]))
     else:
         selected = mink
-    print '\t'.join(['#NUM_CLUSTERS', 'BEST_OBJ', 'ELBOW_SCORE', 'SELECTED'])
-    for k in xrange(mink, maxk+1):
-        print '\t'.join(map(str, [k, objs[k], elbow[k] if k < maxk else 'NaN', selected==k]))
+    print('\t'.join(['#NUM_CLUSTERS', 'BEST_OBJ', 'ELBOW_SCORE', 'SELECTED']))
+    for k in range(mink, maxk+1):
+        print('\t'.join(map(str, [k, objs[k], elbow[k] if k < maxk else 'NaN', selected==k])))
 
     C, bmut, clus, conf, objs = map(lambda D : shared[D][best[selected]], ['C', 'bmut', 'clus', 'conf', 'objs'])
     
@@ -328,7 +329,7 @@ def run_coordinator_binary(mutations, num_samples, purity, args, record):
 
 
 def run(mutations, num_samples, K, maxit, prefix, purity, restarts, ubleft, J, record, betabinomial):
-    jobs = [(x, K, np.random.randint(low=0, high=2**10)) for x in xrange(restarts)]
+    jobs = [(x, K, np.random.randint(low=0, high=2**10)) for x in range(restarts)]
     manager, shared = setup_shared()
     initargs = (mutations, num_samples, maxit, shared, record, betabinomial, purity)
     pool = Pool(processes=min(J, len(jobs)), initializer=init_descent, initargs=initargs)
@@ -390,7 +391,7 @@ def unpck(args):
 
 class ProgressBar:
 
-    def __init__(self, total, length, lock, counter, verbose=False, decimals=1, fill=unichr(9608), prefix = 'Progress:', suffix = 'Complete'):
+    def __init__(self, total, length, lock, counter, verbose=False, decimals=1, fill=chr(9608), prefix = 'Progress:', suffix = 'Complete'):
         self.total = total
         self.length = length
         self.decimals = decimals
@@ -419,7 +420,12 @@ class ProgressBar:
         else:
             toprint = rewind + msg + "\n" + result
         with self.lock:
-            write(toprint.encode('utf-8'))
+            #print("#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#")
+            #print(toprint.encode('utf-8'))
+            #print(write(toprint))
+            #print("#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#")
+            #write(toprint.encode('utf-8'))
+            x = write(toprint)
             flush()
             if self.counter.value == self.total:
                 write("\n")

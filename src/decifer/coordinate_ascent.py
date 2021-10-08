@@ -100,7 +100,7 @@ def coordinate_ascent(mutations, num_samples, max_iters):
         C_old = C
         C, obj = optimize_cluster_centers(mutations, num_samples, C_old)
         objs.append(obj)
-        print ("After optimize cluster centers", [["{:.2f}".format(v) for v in c] for c in C],obj)
+        print("After optimize cluster centers", [["{:.2f}".format(v) for v in c] for c in C],obj)
         mutations, obj = optimize_assignments(mutations, C, num_samples)
         objs.append(obj)
         #for mutation in mutations:

@@ -4,14 +4,15 @@ mutation.py
 author: gsatas
 date: 2020-05-04
 """
-from config import *
+from .config import *
 import warnings
 import pandas as pd
 
 
 class mutation:
     ''' A mutation has a set of configurations, and read counts'''
-    def __init__(self, configs, alltrees, a, d, label="NA", index = 0):
+
+    def __init__(self, configs, alltrees, a, d, label="NA", index=0):
         self.configs = configs
         self.trees = alltrees
         self.a = a
@@ -46,14 +47,14 @@ class mutation:
         return c
 
     def assigned_tree(self):
-            for c, t in zip(self.configs, self.trees):
-                if c == self.assigned_config:
-                    return t
+        for c, t in zip(self.configs, self.trees):
+            if c == self.assigned_config:
+                return t
 
-    
+
 def get_edge_list(state_tree):
     edge_list = []
-    for i in range(0, len(state_tree),2):
+    for i in range(0, len(state_tree), 2):
         edge_list.append((state_tree[i], state_tree[i+1]))
     return edge_list
 
@@ -66,17 +67,19 @@ def get_desc_set(state_tree, vertex):
         vertex.append(1)
     for edge in [edge for edge in edge_list if list(edge[0]) == vertex]:
         desc_set.append(edge[1])
-        desc_set += get_desc_set(state_tree, edge[1] )
+        desc_set += get_desc_set(state_tree, edge[1])
     return desc_set
 
 
-def get_configs(_state_trees, Cs, mus, dcf_mode): #c1,mu1, c2 = None, mu2 = None):
+# c1,mu1, c2 = None, mu2 = None):
+def get_configs(_state_trees, Cs, mus, dcf_mode):
     if len(Cs) == 1:
         # Config is simple
-        configuration = config(mut_state=Cs[0], other_states=[], cn_props={Cs[0]:[mus[0],]}, desc_set = [], dcf_mode=dcf_mode)
-        return [configuration,], [[(1, 1, 0), (1, 1, 1)],]
+        configuration = config(mut_state=Cs[0], other_states=[], cn_props={
+                               Cs[0]: [mus[0], ]}, desc_set=[], dcf_mode=dcf_mode)
+        return [configuration, ], [[(1, 1, 0), (1, 1, 1)], ]
     else:
-	state_trees = _state_trees[tuple(set(Cs))]
+        state_trees = _state_trees[tuple(set(Cs))]
         configurations = []
         alltrees = []
         for state_tree_full in state_trees:
@@ -85,28 +88,32 @@ def get_configs(_state_trees, Cs, mus, dcf_mode): #c1,mu1, c2 = None, mu2 = None
             # Identify mutation state
             for c in Cs:
                 try:
-                    num_states_c = sum([1 for s in state_tree if s[0] == c[0] and s[1] == c[1]])
+                    num_states_c = sum(
+                        [1 for s in state_tree if s[0] == c[0] and s[1] == c[1]])
                 except:
                     print(state_tree)
                     print(Cs)
                     print(mus)
                     raise
-                if num_states_c == 0: continue
+                if num_states_c == 0:
+                    continue
                 elif num_states_c == 2:
                     mut_state = c
                     # Don't break out of this here because we still want to skip this
                     # state tree if not all states are in it
             # Identify the descendant set of mut_state
             desc_set = get_desc_set(state_tree_full, mut_state)
-            other_states = [s for s in state_tree if s[0] != mut_state[0] or s[1] != mut_state[1]]
-            cn_props = {c:[mu,] for c,mu in zip(Cs, mus)}
-            configuration = config(mut_state=mut_state, other_states=other_states, cn_props = cn_props, desc_set=desc_set, dcf_mode=dcf_mode)
+            other_states = [s for s in state_tree if s[0]
+                            != mut_state[0] or s[1] != mut_state[1]]
+            cn_props = {c: [mu, ] for c, mu in zip(Cs, mus)}
+            configuration = config(mut_state=mut_state, other_states=other_states,
+                                   cn_props=cn_props, desc_set=desc_set, dcf_mode=dcf_mode)
             configurations.append(configuration)
             alltrees.append(saved_tree)
         return configurations, alltrees
 
 
-def create_mutations(mutation_data, state_trees, dcf_mode = True):
+def create_mutations(mutation_data, state_trees, dcf_mode=True):
     # From a mutation data file, create a set of mutations
     mutations = {}
     purity = {}
@@ -119,7 +126,6 @@ def create_mutations(mutation_data, state_trees, dcf_mode = True):
         a = int(line['var'])
         d = a + ref
 
-
         sample = int(line['#sample_index'])
 
         c1 = (int(line['c1a']), int(line['c1b']))
@@ -131,34 +137,36 @@ def create_mutations(mutation_data, state_trees, dcf_mode = True):
         mus = []
         for i in range(num_cstates):
             try:
-                c = (int(line['c{}a'.format(i+1)]), int(line['c{}b'.format(i+1)]))
+                c = (int(line['c{}a'.format(i+1)]),
+                     int(line['c{}b'.format(i+1)]))
                 mu = float(line['mu{}'.format(i+1)])
                 Cs.append(c)
                 mus.append(mu)
             except ValueError:
-                #print "ValueError"
-                #TODO
+                # print "ValueError"
+                # TODO
                 continue
 
-        mut_purity = sum([m for c,m in zip (Cs, mus) if c != (1,1)])
+        mut_purity = sum([m for c, m in zip(Cs, mus) if c != (1, 1)])
         try:
             purity[sample] = max(mut_purity, purity[sample])
         except:
             purity[sample] = mut_purity
 
         if index in mutations:
-            cn_props = {c:mu for c, mu in zip(Cs, mus)}
-            mutations[index].add_sample(a,d,cn_props)
+            cn_props = {c: mu for c, mu in zip(Cs, mus)}
+            mutations[index].add_sample(a, d, cn_props)
         else:
             try:
                 configs, alltrees = get_configs(state_trees, Cs, mus, dcf_mode)
             except KeyError:
-                
-		msg="Skipping mutation {}: State tree file does not contain state trees for the set of copy-number states that affect mutation {}.\n To generate state trees, see documentation for `generatestatetrees`, included in the C++ component of DeCiFer.".format(idx, idx)
+
+                msg = "Skipping mutation {}: State tree file does not contain state trees for the set of copy-number states that affect mutation {}.\n To generate state trees, see documentation for `generatestatetrees`, included in the C++ component of DeCiFer.".format(
+                    idx, idx)
                 warnings.warn(msg)
                 continue
 
-            mut = mutation(configs, alltrees, [a,], [d,], label, index)
+            mut = mutation(configs, alltrees, [a, ], [d, ], label, index)
             mutations[index] = mut
 
     return [mutations[m] for m in mutations], purity
