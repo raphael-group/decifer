@@ -13,7 +13,7 @@ from setuptools import setup
 setuptools.setup(
     name='decifer',
     version='v1.1.1',
-    python_requires='>=3.6.*',
+    python_requires='>=3.7.*',
     packages=['decifer'],
     package_dir={'': 'src'},
     author='Simone Zaccaria and Gryte Satas and Mohammed El-Kebir',
@@ -34,7 +34,7 @@ setuptools.setup(
     license='BSD',
     platforms=["Linux", "MacOs", "Windows"],
     classifiers=[
-        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3.7',
         "Intended Audience :: Science/Research",
         "Natural Language :: English",
         "Operating System :: MacOS :: MacOS X",
@@ -49,6 +49,6 @@ setuptools.setup(
         'somatic mutations'
         'DNA',
         'SNVs'],
-    entry_points={'console_scripts': ['decifer=decifer.decifer:main',
+    entry_points={'console_scripts': ['decifer=decifer.__main__:main',
                                       'fitbeta=decifer.generator:main']}
 )

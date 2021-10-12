@@ -13,26 +13,27 @@ import datetime
 import traceback
 import multiprocessing as mp
 import random as rand
+from collections import defaultdict
 
 from pkg_resources import resource_filename
 from copy import deepcopy
 from multiprocessing import Lock, Value, Pool, Manager
 import numpy as np
-import scipy.integrate as integrate
 from bisect import bisect_left
 
-from .fileio import *
-from .new_coordinate_ascent import *
-
+from decifer.fileio import *
+from decifer.new_coordinate_ascent import *
+from decifer.mutation import *
 
 
 def main():
     sys.stderr.write('Parsing and checking arguments\n')
     args = parse_args()
     sys.stderr.write('\n'.join(['Arguments:'] + ['\t{} : {}'.format(a, args[a]) for a in args]) + '\n')
+    # read input mutation data, store as pd.DataFrame
     mutation_data = read_in_test_file(args["input"])
     
-    #create dictionary of sample indices and labels for printing later
+    # create dictionary of sample indices and labels for printing later
     sample_ids = { int(i[0]) : i[1] for i in zip(mutation_data['#sample_index'].unique(), mutation_data['sample_label'].unique()) }
     for i in sample_ids:
         print(i, sample_ids[i])
@@ -46,6 +47,9 @@ def main():
         sys.stderr.write('## The maximum number of clusters has been increased to {} to be higher than the minimum!\n'.format(args['maxk']))        
     script_dir = sys.path[0]
     state_trees = read_in_state_trees(args['statetrees'])
+
+    # store info from mutation_data pd.DataFrame in mutations list, containing Mutation objects as elements
+    # infer purity from SNV data, but overwrite purity dict if purity file provided (next line)
     mutations, purity = create_mutations(mutation_data, state_trees, not args['ccf'])
     if args['purity'] is not None:
         purity = read_purity(args['purity'], purity)
@@ -78,11 +82,12 @@ def parse_args():
     parser.add_argument("-t","--maxit", type=int, required=False, default=200, help="Maximum number of iterations per restart (default: 200)")
     parser.add_argument("-e","--elbow", type=float, required=False, default=0.06, help="Elbow sensitivity, lower values increase sensitivity (default: 0.06)")
     parser.add_argument("--binarysearch", required=False, default=False, action='store_true', help='Use binary-search model selection (default: False, iterative is used; use binary search when considering large numbers of clusters')
-    parser.add_argument("--record", required=False, default=False, action='store_true', help='Record objectives (default: False')
+    parser.add_argument("--record", required=False, default=False, action='store_true', help='Record objectives (default: False)')
     parser.add_argument("-j","--jobs", type=int, required=False, default=mp.cpu_count(), help="Number of parallele jobs to use (default: equal to number of available processors)")
     parser.add_argument("-o","--output", type=str, required=False, default="./decifer", help="Output prefix (default: ./decifer)")
     parser.add_argument("--statetrees", type=str, required=False, default=None, help="Filename of state-trees file (default: use state_trees.txt in the package)")
     parser.add_argument("--seed", type=int, required=False, default=None, help="Random-generator seed (default: None)")
+    parser.add_argument("--debug", required=False, default=False, action='store_true', help='single-threaded mode for development/debugging')
     args = parser.parse_args()
 
     if not os.path.isfile(args.INPUT):
@@ -121,7 +126,8 @@ def parse_args():
         "output" : args.output,
         "ccf" : args.ccf,
         "betabinomial" : betabinomial,
-        "statetrees" : statetrees
+        "statetrees" : statetrees,
+        "debug" : args.debug
     }
 
 
@@ -137,15 +143,23 @@ def read_purity(purity_file, purity):
 def run_coordinator_iterative(mutations, sample_ids, num_samples, purity, args, record):
     mink, maxk, maxit, prefix, restarts, ubleft, J = unpck(args)
     jobs = [(x, k, np.random.randint(low=0, high=2**10)) for x in range(restarts) for k in range(mink, maxk+1)]
-    manager, shared = setup_shared()
-    initargs = (mutations, num_samples, maxit, shared, record, args['betabinomial'], purity)
-    pool = Pool(processes=min(J, len(jobs)), initializer=init_descent, initargs=initargs)
-    bar = ProgressBar(total=len(jobs), length=30, verbose=False, lock=Lock(), counter=Value('i', 0))
-    bar.progress(advance=False, msg="Started")
-    report = (lambda r : bar.progress(advance=True, msg="Completed {} for k={} [Iterations: {}]".format(r[0], r[1], r[3])))
-    map(report, pool.imap_unordered(run_descent, jobs))
+    # run in single-thread mode for development/debugging
+    if args['debug']:
+        shared = defaultdict(dict)
+        # make objects global
+        init_descent(mutations, num_samples, maxit, shared, record, args['betabinomial'], purity)
+        for job in jobs:
+            run_descent(job)
+    else:
+        manager, shared = setup_shared()
+        initargs = (mutations, num_samples, maxit, shared, record, args['betabinomial'], purity)
+        pool = Pool(processes=min(J, len(jobs)), initializer=init_descent, initargs=initargs)
+        bar = ProgressBar(total=len(jobs), length=30, verbose=False, lock=Lock(), counter=Value('i', 0))
+        bar.progress(advance=False, msg="Started")
+        report = (lambda r : bar.progress(advance=True, msg="Completed {} for k={} [Iterations: {}]".format(r[0], r[1], r[3])))
+        map(report, pool.imap_unordered(run_descent, jobs))
     # best[cluster number k] = min objective across runs/restarts
-    best = {k : min(filter(lambda j : j[1] == k, jobs), key=(lambda j : shared['objs'][j])) for k in range(mink, maxk+1)}
+    best = {k : min(list(filter(lambda j : j[1] == k, jobs)), key=(lambda j : shared['objs'][j])) for k in range(mink, maxk+1)}
 
     #ubleft = .25 * len(mutations) * num_samples * 10
     objs = {k : shared['objs'][best[k]] for k in best}
@@ -199,7 +213,7 @@ def run_coordinator_iterative(mutations, sample_ids, num_samples, purity, args, 
 def print_feasibleVAFs(cluster_ids, muts, num_samples, bb, C):
     with open("feasibleVAFs.txt", 'w') as f:
         for i in cluster_ids:
-            mut = filter(lambda m : m.assigned_cluster == i, muts) 
+            mut = list(filter(lambda m : m.assigned_cluster == i, muts))
             for s in range(0,num_samples):
                 lowers = [m.assigned_config.cf_bounds(s)[0] for m in mut]
                 uppers = [m.assigned_config.cf_bounds(s)[1] for m in mut]
@@ -209,7 +223,7 @@ def print_feasibleVAFs(cluster_ids, muts, num_samples, bb, C):
 def print_PDF(cluster_ids, muts, num_samples, bb, C):
     with open("pdfs.txt", 'w') as f:
         for i in cluster_ids:
-            mut = filter(lambda m : m.assigned_cluster == i, muts) 
+            mut = list(filter(lambda m : m.assigned_cluster == i, muts))
             for s in range(0,num_samples):
                 max_dcf = C[s][i] # dcf value that maximizes posterior for this sample and cluster ID
                 delta = (-1*objective(max_dcf, mut, s, bb))-2
@@ -258,7 +272,7 @@ def CI(job):
     the CCF/DCF distribution.
     """
     c, s, muts, num_tests, bb = job # c is cluster, s is sample
-    mut = filter(lambda m : m.assigned_cluster == c, muts) 
+    mut = list(filter(lambda m : m.assigned_cluster == c, muts))
     
     num_pts = 10000
     grid = [objective(j, mut, s, bb) for j in np.linspace(0, 1, num_pts)]

@@ -4,13 +4,13 @@ mutation.py
 author: gsatas
 date: 2020-05-04
 """
-from .config import *
+from decifer.config import *
 import warnings
 import pandas as pd
 
 
-class mutation:
-    ''' A mutation has a set of configurations, and read counts'''
+class Mutation:
+    ''' A Mutation has a set of configurations, and read counts'''
 
     def __init__(self, configs, alltrees, a, d, label="NA", index=0):
         self.configs = configs
@@ -32,7 +32,7 @@ class mutation:
             config.add_sample(cn_props, self.label)
 
     def compute_cmm_ccf(self, vaf, purity, sample):
-        # Maybe CN proportions and F should live here in the mutation class. As they're
+        # Maybe CN proportions and F should live here in the Mutation class. As they're
         # the same for all configs. not sure
         config = self.configs[0]
         cn_props = config.cn_props
@@ -114,7 +114,7 @@ def get_configs(_state_trees, Cs, mus, dcf_mode):
 
 
 def create_mutations(mutation_data, state_trees, dcf_mode=True):
-    # From a mutation data file, create a set of mutations
+    # From a mutation data file, create mutation dict of Mutation objects
     mutations = {}
     purity = {}
 
@@ -132,13 +132,17 @@ def create_mutations(mutation_data, state_trees, dcf_mode=True):
 
         mu1 = float(line['mu1'])
 
+        # 6 columns for SNV info (sample index/label, character index/label, REF counts, ALT counts)
+        # remainder of columns for copy number states, each state having 3 columns
         num_cstates = (len(mutation_data.columns) - 6)//3
-        Cs = []
-        mus = []
+        Cs = [] # list of tuples of allele-specific copy numbers
+        mus = [] # list of clone proportions
         for i in range(num_cstates):
             try:
+                # c = tuple of allele-specific copy numbers
                 c = (int(line['c{}a'.format(i+1)]),
                      int(line['c{}b'.format(i+1)]))
+                # mu = clone proportion
                 mu = float(line['mu{}'.format(i+1)])
                 Cs.append(c)
                 mus.append(mu)
@@ -147,12 +151,15 @@ def create_mutations(mutation_data, state_trees, dcf_mode=True):
                 # TODO
                 continue
 
+        # sum all clone proportions that aren't (1,1), use to update purity[sample]
         mut_purity = sum([m for c, m in zip(Cs, mus) if c != (1, 1)])
         try:
             purity[sample] = max(mut_purity, purity[sample])
         except:
             purity[sample] = mut_purity
 
+        # if multiple samples, encounter mutation index again
+        # for newly encountered sample, append new a, d, and for each CN state, append the clone proportion
         if index in mutations:
             cn_props = {c: mu for c, mu in zip(Cs, mus)}
             mutations[index].add_sample(a, d, cn_props)
@@ -166,7 +173,7 @@ def create_mutations(mutation_data, state_trees, dcf_mode=True):
                 warnings.warn(msg)
                 continue
 
-            mut = mutation(configs, alltrees, [a, ], [d, ], label, index)
+            mut = Mutation(configs, alltrees, [a, ], [d, ], label, index)
             mutations[index] = mut
 
     return [mutations[m] for m in mutations], purity

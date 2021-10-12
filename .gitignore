@@ -1,3 +1,5 @@
+test/decifer.*
+.idea
 notes.txt
 feasibleVAFs.txt
 max_dcfs.txt

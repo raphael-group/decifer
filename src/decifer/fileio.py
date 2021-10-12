@@ -5,7 +5,8 @@ author: gsatas
 date: 2020-05-04
 """
 
-from .new_coordinate_ascent import *
+from decifer.new_coordinate_ascent import compute_pdfs
+import numpy as np
 import pandas as pd
 
 def read_in_state_trees(filename):
@@ -32,8 +33,12 @@ def read_in_test_file(filename):
         f.readline()
         header = f.readline().strip().split('\t')
         lines = [line.strip().split('\t') for line in f.readlines()]
+        # copy number states vary across SNVs, find max number of observed states
         length = max([len(line) for line in lines])
         num_cstates = (length - len(header))//3
+
+        # copy number states are in unlabelled columns, give them column names here
+        # allows easy access to these columns later
         for i in range(num_cstates):
             header += ["c{}a".format(i+1), "c{}b".format(i+1), "mu{}".format(i+1)]
         # pad lines
@@ -46,6 +51,7 @@ def read_in_test_file(filename):
 def write_results(prefix, C, CIs, mut_cluster_assignments, mut_config_assignments, mutations, purity, bb, kind):
     with open('{}.output.tsv'.format(prefix), 'w') as out:
         out.write('mut_index\t'+"\t".join(['VAR_{}'.format(i) for i in range(len(C))]+['TOT_{}'.format(i) for i in range(len(C))])+'\tcluster\tstate_tree\t'+"\t".join(['true_cluster_{}{}'.format(kind, i) for i in range(len(C))] + ['point_estimate_{}{}'.format(kind, i)  for i in range(len(C))] + ['cmm_CCF{}'.format(i) for i in range(len(C))]) + '\tExplained\tLHs' + '\n')
+        #for mut, clust in zip(mutations, mut_cluster_assignments):
         for mut, clust in zip(mutations, mut_cluster_assignments):
             label = mut.label
             #CF = [c[clust] for c in C]

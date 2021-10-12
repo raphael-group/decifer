@@ -14,14 +14,12 @@ from scipy.stats import beta
 from scipy.special import betaln
 from scipy.special import gammaln
 from scipy.optimize import minimize_scalar
-from scipy.optimize import minimize
 import time
 
-from .fileio import *
-from .mutation import *
-from .config import *
-from .mutation import *
-#from visualize import *
+from decifer.fileio import *
+#from mutation import *
+#from config import *
+#from mutation import *
 
 
 TOLERANCE = 1e-03
@@ -30,14 +28,20 @@ SEQERROR = 1e-40
 
 
 def coordinate_descent(restart, seed, mutations, num_samples, num_clusters, MAX_IT=5, record=None, bb=None, purity=None):
+    # rest = number of variably present clusters subject to model selection, fixed clusters include truncal, absent, and sample specific SNVs
     rest = num_clusters - (2 + num_samples)
     assert rest >= 0, 'Number of clusters is too low!'
-    form = (lambda L, sam : [0.0, purity[sam]] + [purity[sam] if s == sam else 0.0 for s in range(num_samples)] + map(lambda v : v / 10.0, list(L)))
-    C = [form(np.random.randint(low=0, high=11, size=rest) if rest > 0 else [], sam) for sam in range(num_samples)]
+    # initialize cluster centers C; a list of lists, where each list is the cluster centers for a sample:
+    # [absent, truncal, sample specific clusters (truncal if sample index, 0 otherwise),
+    # variably present clusters with random initializations]
+    form = ( lambda L, sam : [0.0, purity[sam]] + [purity[sam] if s == sam else 0.0 for s in range(num_samples)]
+                            + list(map(lambda v : v / 10.0, list(L))) )
+    C = [ form(np.random.randint(low=0, high=11, size=rest) if rest > 0 else [], sam) for sam in range(num_samples) ]
     V, C_old, V_old = None, None, None
     IT = 0
     objs = []
 
+    # convergence if the difference between the last and 3rd-to-last objective less than TOLERANCE
     isconverged = (lambda O : False if len(O) < 3 else abs(O[-1] - O[-3]) < TOLERANCE)
     while not isconverged(objs) and IT < MAX_IT:
         mutations, obj = optimize_assignments(mutations, C, num_samples, num_clusters, bb)
@@ -64,15 +68,28 @@ def coordinate_descent(restart, seed, mutations, num_samples, num_clusters, MAX_
 def optimize_assignments(mutations, C, num_samples, num_clusters, bb, last=False):
 
     def select(m):
+        # m in a single element from mutations
+
+        # i *think* each element of m.configs list is Config object for a particular cn_state, cn_prop
         combs = [(config, clust) for config in m.configs for clust in range(num_clusters)]
+        # form returns a 3-tuple (VAF, a, d-a), where
+        # VAF is computed by converting from DCF/CCF cluster center for a sample, a is ALT depth, d is total depth
         if bb is None:
             form = (lambda cf, cl, sam : (cf.cf_to_v(C[sam][cl], sam), m.a[sam]+1, (m.d[sam] - m.a[sam]) + 1))
         else:
             form = (lambda cf, cl, sam : (cf.cf_to_v(C[sam][cl], sam), m.a[sam], m.d[sam] - m.a[sam], bb[sam]))
-        grow = (lambda sample : compute_pdfs(*zip(*[form(cb[0], cb[1], sample) for cb in combs])))
+        # given a sample, returns log prob of mutation for each cluster???
+        # zip takes list of 3-tuples (asterisk w/in zip makes each tuple separate arg)
+        # zip returns 3 tuples/lists, one for each return value of form lambda: VAF, a, d-a
+        # asterisk preceding zip makes each tuple/list a separate arg for compute_pdfs
+        grow = (lambda sample : compute_pdfs( *zip(*[form(cb[0], cb[1], sample) for cb in combs]) ))
+        # grow(sample) returns array of log prob of mutation (a, d-a) for each cluster
+        # obj is array of summed log prob(mutation) across samples, 1 element for each cluster
         objs = -np.sum(np.array([grow(sample) for sample in range(num_samples)]), axis=0)
+        # taking minimum of negative log probability maximizes probability, finding best cluster
         best = objs.argmin()
         assert objs[best] < np.inf, 'A mutation cannot be assigned to any cluster: {},{}\n\t{}\n'.format(m.index, m.label, map(lambda x : '{},{}'.format(x.mut_state, x.other_states), m.configs)) + str([m.configs[0].cf_bounds(sam) for sam in range(num_samples)]) + '\n' + str([C[sam][1] for sam in range(num_samples)]) + '\n'
+        # compare best
         found = combs.index((m.assigned_config, m.assigned_cluster))
         before = -sum(compute_pdfs(*zip(*[form(combs[found][0], combs[found][1], sample) for sample in range(num_samples)])))
         assert objs[best] <= before, 'Non scende: {}'.format(C)
@@ -103,7 +120,7 @@ def optimize_cluster_centers(mutations, num_samples, C_old, V_old, num_clusters,
     caseb = (lambda muti, sam, i : cas01(muti, sam, 0.0 if i == 0 else purity[sam]) if i in {0, 1} else cases(muti, sam, i))
     obj_i = (lambda muti, sam, i : caseb(muti, sam, i) if i < 2 + num_samples else caseg(muti, sam))
     selec = (lambda sam, i, R : (C_old[sam][i], V_old[sam][i]) if V_old[sam][i] < R[1] else R)
-    R_sam = (lambda sam : [selec(sam, i, obj_i(filter(lambda m : m.assigned_cluster == i, mutations), sam, i)) for i in range(num_clusters)])
+    R_sam = (lambda sam : [selec(sam, i, obj_i(list(filter(lambda m : m.assigned_cluster == i, mutations)), sam, i)) for i in range(num_clusters)])
     R_new = [R_sam(sam) for sam in range(num_samples)]
     C_new, V_new = map(list, zip(*[map(list, zip(*r)) for r in R_new]))
     return C_new, V_new, sum(el for r in V_new for el in r)
@@ -120,12 +137,12 @@ def objective(ci, muti, sample, bb):
 
 def update_objs(C, mutations, num_samples, num_clusters, bb):
     iobj = (lambda sam, muti, c : objective(c, muti, sam, bb) if len(muti) > 0 else 0.0)
-    comp = (lambda sam, i : iobj(sam, filter(lambda m : m.assigned_cluster == i, mutations), C[sam][i]))
+    comp = (lambda sam, i : iobj(sam, list(filter(lambda m : m.assigned_cluster == i, mutations)), C[sam][i]))
     return [[comp(sam, i) for i in range(num_clusters)] for sam in range(num_samples)]
 
 
 def compute_pdfs(_VS, _AS, _BS, _BB=None, check=False):
-     M = np.array(map(lambda v : False if v is False else True, _VS))
+     M = np.array(list(map(lambda v : False if v is False else True, _VS)))
      if _BB is None:
          VS, AS, BS = map(np.array, [_VS, _AS, _BS])
      else:
