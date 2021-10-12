@@ -150,7 +150,7 @@ def run_coordinator_iterative(mutations, sample_ids, num_samples, purity, args, 
         bar = ProgressBar(total=len(jobs), length=30, verbose=False, lock=Lock(), counter=Value('i', 0))
         bar.progress(advance=False, msg="Started")
         report = (lambda r : bar.progress(advance=True, msg="Completed {} for k={} [Iterations: {}]".format(r[0], r[1], r[3])))
-        map(report, pool.imap_unordered(run_descent, jobs))
+        list(map(report, pool.imap_unordered(run_descent, jobs)))
     # best[cluster number k] = min objective across runs/restarts
     best = {k : min(list(filter(lambda j : j[1] == k, jobs)), key=(lambda j : shared['objs'][j])) for k in range(mink, maxk+1)}
 
