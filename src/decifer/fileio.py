@@ -26,7 +26,7 @@ def read_in_state_trees(filename):
     return state_trees
 
 
-def read_in_test_file(filename):
+def read_input_file(filename):
 
     with open(filename) as f:
         f.readline()
@@ -47,6 +47,14 @@ def read_in_test_file(filename):
         df = pd.DataFrame(lines)
         df.columns = header
     return df
+
+def read_purity(purity_file, purity):
+    purity = {}
+    with open(purity_file) as f:
+        for line in f:
+            line = line.strip().split('\t')
+            purity[int(line[0])] = float(line[1])
+    return purity
 
 def write_results(prefix, C, CIs, mut_cluster_assignments, mut_config_assignments, mutations, purity, bb, kind):
     with open('{}.output.tsv'.format(prefix), 'w') as out:

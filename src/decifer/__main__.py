@@ -31,7 +31,7 @@ def main():
     args = parse_args()
     sys.stderr.write('\n'.join(['Arguments:'] + ['\t{} : {}'.format(a, args[a]) for a in args]) + '\n')
     # read input mutation data, store as pd.DataFrame
-    mutation_data = read_in_test_file(args["input"])
+    mutation_data = read_input_file(args["input"])
     
     # create dictionary of sample indices and labels for printing later
     sample_ids = { int(i[0]) : i[1] for i in zip(mutation_data['#sample_index'].unique(), mutation_data['sample_label'].unique()) }
@@ -53,6 +53,7 @@ def main():
     mutations, purity = create_mutations(mutation_data, state_trees, not args['ccf'])
     if args['purity'] is not None:
         purity = read_purity(args['purity'], purity)
+
     if args['record']:
         manager = mp.Manager()
         record = manager.list()
@@ -130,14 +131,6 @@ def parse_args():
         "debug" : args.debug
     }
 
-
-def read_purity(purity_file, purity):
-    purity = {}
-    with open(purity_file) as f:
-        for line in f:
-            line = line.strip().split('\t')
-            purity[int(line[0])] = float(line[1])
-    return purity
 
 
 def run_coordinator_iterative(mutations, sample_ids, num_samples, purity, args, record):

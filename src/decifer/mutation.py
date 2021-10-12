@@ -128,9 +128,8 @@ def create_mutations(mutation_data, state_trees, dcf_mode=True):
 
         sample = int(line['#sample_index'])
 
-        c1 = (int(line['c1a']), int(line['c1b']))
-
-        mu1 = float(line['mu1'])
+        #c1 = (int(line['c1a']), int(line['c1b']))
+        #mu1 = float(line['mu1'])
 
         # 6 columns for SNV info (sample index/label, character index/label, REF counts, ALT counts)
         # remainder of columns for copy number states, each state having 3 columns
