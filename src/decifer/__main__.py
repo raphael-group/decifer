@@ -44,8 +44,11 @@ def main():
         sys.stderr.write('## The minimum number of clusters has been increased to {} to account for fixed clusters!\n'.format(args['mink']))
     if args['maxk'] < args['mink']:
         args['maxk'] = args['mink']
-        sys.stderr.write('## The maximum number of clusters has been increased to {} to be higher than the minimum!\n'.format(args['maxk']))        
-    script_dir = sys.path[0]
+        sys.stderr.write('## The maximum number of clusters has been increased to {} to be higher than the minimum!\n'.format(args['maxk']))
+    # state_trees dict: keys are potential CN observed CN states (x,y), e.g. ((1, 0), (1, 1), (0, 0))
+    # values are lists of lists, where each list contains all possible genotypes (x,y,m), e.g.
+    # [(1, 0, 0), (0, 0, 0), (1, 0, 0), (1, 0, 1), (1, 1, 0), (1, 0, 0)]
+    # these lists are always even, and each pair (i,i+1) is an edge in the state tree
     state_trees = read_in_state_trees(args['statetrees'])
 
     # store info from mutation_data pd.DataFrame in mutations list, containing Mutation objects as elements
