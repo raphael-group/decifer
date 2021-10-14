@@ -6,7 +6,6 @@ date: 2020-05-25
 """
 
 import sys
-import math
 import warnings
 
 import numpy as np
@@ -15,12 +14,6 @@ from scipy.special import betaln
 from scipy.special import gammaln
 from scipy.optimize import minimize_scalar
 import time
-
-from decifer.fileio import *
-#from mutation import *
-#from config import *
-#from mutation import *
-
 
 TOLERANCE = 1e-03
 EPSILON = -1e40

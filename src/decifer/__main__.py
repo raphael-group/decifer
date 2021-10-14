@@ -5,9 +5,7 @@ author: Simone Zaccaria
 date: 2020-05-21
 """
 
-
 import sys, os
-#import argparse
 import warnings
 import datetime
 import traceback
@@ -15,16 +13,17 @@ import multiprocessing as mp
 import random as rand
 from collections import defaultdict
 
-#from pkg_resources import resource_filename
 from copy import deepcopy
 from multiprocessing import Lock, Value, Pool, Manager
 import numpy as np
+import math
 from bisect import bisect_left
 
+# decifer
 from decifer.parse_args import args
-from decifer.fileio import *
-from decifer.new_coordinate_ascent import *
-from decifer.mutation import *
+from decifer.fileio import write_results, write_results_CIs, read_in_state_trees
+from decifer.new_coordinate_ascent import coordinate_descent, objective
+from decifer.mutation import create_mutations
 from decifer.process_input import PURITY, MUTATION_DF
 
 def main():

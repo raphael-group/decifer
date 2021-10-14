@@ -6,7 +6,7 @@ by purity.
 """
 
 from decifer.parse_args import args
-from decifer.fileio import *
+from decifer.fileio import read_input_file, read_purity
 
 def calc_purity(MUTATION_DF):
     PURITY = {}

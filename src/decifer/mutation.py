@@ -4,7 +4,7 @@ mutation.py
 author: gsatas
 date: 2020-05-04
 """
-from decifer.config import *
+from decifer.config import Config
 import warnings
 import pandas as pd
 
@@ -80,7 +80,7 @@ def get_desc_set(state_tree, vertex):
 def get_configs(_state_trees, CNs, mus, dcf_mode):
     if len(CNs) == 1:
         # Config is simple
-        configuration = config(mut_state=CNs[0], other_states=[], cn_props={
+        configuration = Config(mut_state=CNs[0], other_states=[], cn_props={
                                CNs[0]: [mus[0], ]}, desc_set=[], dcf_mode=dcf_mode)
         return [configuration, ], [[(1, 1, 0), (1, 1, 1)], ]
     else:
@@ -120,7 +120,7 @@ def get_configs(_state_trees, CNs, mus, dcf_mode):
                             != mut_state[0] or s[1] != mut_state[1]]
             # cn_props dict of lists, one proportion (mu) per sample
             cn_props = {c: [mu, ] for c, mu in zip(CNs, mus)}
-            configuration = config(mut_state=mut_state, other_states=other_states,
+            configuration = Config(mut_state=mut_state, other_states=other_states,
                                    cn_props=cn_props, desc_set=desc_set, dcf_mode=dcf_mode)
             configurations.append(configuration)
             alltrees.append(saved_tree)

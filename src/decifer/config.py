@@ -10,7 +10,7 @@ from decifer.process_input import PURITY
 THRESHOLD=0.05
 
 
-class config:
+class Config:
     def __init__(self, mut_state, other_states, cn_props, desc_set, dcf_mode = True):
         '''
         mut_state: 2-tuple that indicates the CN state that the
