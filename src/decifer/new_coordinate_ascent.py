@@ -34,7 +34,7 @@ def coordinate_descent(restart, seed, mutations, num_samples, num_clusters, MAX_
     # initialize cluster centers C; a list of lists, where each list is the cluster centers for a sample:
     # [absent, truncal, sample specific clusters (truncal if sample index, 0 otherwise),
     # variably present clusters with random initializations]
-    form = ( lambda L, sam : [0.0, purity[sam]] + [purity[sam] if s == sam else 0.0 for s in range(num_samples)]
+    form = ( lambda L, sam : [0.0, 1.0] + [purity[sam] if s == sam else 0.0 for s in range(num_samples)]
                             + list(map(lambda v : v / 10.0, list(L))) )
     C = [ form(np.random.randint(low=0, high=11, size=rest) if rest > 0 else [], sam) for sam in range(num_samples) ]
     V, C_old, V_old = None, None, None
@@ -123,7 +123,7 @@ def optimize_cluster_centers(mutations, num_samples, C_old, V_old, num_clusters,
     # cas01 is same as getmi
     cas01 = (lambda muti, sam, x : (x, objective(x, muti, sam, bb) if len(muti) > 0 else 0.0))
     # caseb runs cas01 if i in {0,1}, absent or truncal cluster, o.w. runs cases
-    caseb = (lambda muti, sam, i : cas01(muti, sam, 0.0 if i == 0 else purity[sam]) if i in {0, 1} else cases(muti, sam, i))
+    caseb = (lambda muti, sam, i : cas01(muti, sam, 0.0 if i == 0 else 1.0) if i in {0, 1} else cases(muti, sam, i))
     # obj_i runs caseb if cluster is absent, truncal, or sample specific, o.w. runs caseg
     obj_i = (lambda muti, sam, i : caseb(muti, sam, i) if i < 2 + num_samples else caseg(muti, sam))
     selec = (lambda sam, i, R : (C_old[sam][i], V_old[sam][i]) if V_old[sam][i] < R[1] else R)

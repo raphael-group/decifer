@@ -4,9 +4,8 @@ config.py
 author: gsatas
 date: 2020-05-04
 """
-#import warnings
-#warnings.filterwarnings("error", '.*divide by zero.*')
 
+from decifer.process_input import PURITY
 
 THRESHOLD=0.05
 
@@ -49,8 +48,9 @@ class config:
     #    return sum([self.cn_props[s[:2]] * (s[2]-1) for s in self.other_states if s[2] > 0])
 
     def c(self, lam, sample):
-        return self.cn_props[self.mut_state][sample] * lam \
+        c_unnorm = self.cn_props[self.mut_state][sample] * lam \
             + sum([self.cn_props[s[:2]][sample] for s in self.other_states if s[2] >= 1])
+        return c_unnorm/PURITY[sample]
 
     def v(self, lam, sample):
             F = self.F(sample)
@@ -60,12 +60,13 @@ class config:
 
     def d(self, lam, sample):
         # multiplies lam by SSCN CN proportion in which mutation arose, canceling out earlier division in v_to_lam
-        return self.cn_props[self.mut_state][sample] * lam \
+        d_unnorm = self.cn_props[self.mut_state][sample] * lam \
                 + sum([self.cn_props[s[:2]][sample] for s in self.other_states if s in self.desc_set])
+        return d_unnorm/PURITY[sample]
 
     def c_to_lam(self, c, sample):
             if self.cn_props[self.mut_state][sample] == 0: return 0
-            lam = (c - sum([self.cn_props[s[:2]][sample] for s in self.other_states if s[2] >= 1]))/self.cn_props[self.mut_state][sample]
+            lam = (c*PURITY[sample] - sum([self.cn_props[s[:2]][sample] for s in self.other_states if s[2] >= 1]))/self.cn_props[self.mut_state][sample]
             return lam
 
     def v_to_lam(self, v, sample):
@@ -79,10 +80,11 @@ class config:
 
     def d_to_lam(self, d, sample):
             if self.cn_props[self.mut_state][sample] == 0: return 0
-            lam = (d - sum([self.cn_props[s[:2]][sample] for s in self.other_states if s in self.desc_set]))/self.cn_props[self.mut_state][sample]
+            lam = (d*PURITY[sample] - sum([self.cn_props[s[:2]][sample] for s in self.other_states if s in self.desc_set]))/self.cn_props[self.mut_state][sample]
             return lam
 
     def v_to_cf(self, v, sample, truncate = True):
+        # calls d_to_v or c_to_v depending on dcf_mode
         if self.dcf_mode:
             cf = self.v_to_d(v, sample, truncate)
         else:
@@ -90,6 +92,7 @@ class config:
         return min(max(cf, 0.0), 1.0)
 
     def cf_to_v(self, c, sample, truncate = True):
+        # calls d_to_v or c_to_v depending on dcf_mode
         if not (self.cf_bounds(sample)[0] - THRESHOLD <= c <= self.cf_bounds(sample)[1] + THRESHOLD):
             return False
         if self.dcf_mode:

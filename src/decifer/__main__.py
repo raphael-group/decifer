@@ -7,7 +7,7 @@ date: 2020-05-21
 
 
 import sys, os
-import argparse
+#import argparse
 import warnings
 import datetime
 import traceback
@@ -15,26 +15,23 @@ import multiprocessing as mp
 import random as rand
 from collections import defaultdict
 
-from pkg_resources import resource_filename
+#from pkg_resources import resource_filename
 from copy import deepcopy
 from multiprocessing import Lock, Value, Pool, Manager
 import numpy as np
 from bisect import bisect_left
 
+from decifer.parse_args import args
 from decifer.fileio import *
 from decifer.new_coordinate_ascent import *
 from decifer.mutation import *
-
+from decifer.process_input import PURITY, MUTATION_DF
 
 def main():
-    sys.stderr.write('Parsing and checking arguments\n')
-    args = parse_args()
     sys.stderr.write('\n'.join(['Arguments:'] + ['\t{} : {}'.format(a, args[a]) for a in args]) + '\n')
-    # read input mutation data, store as pd.DataFrame
-    mutation_data = read_input_file(args["input"])
-    
+
     # create dictionary of sample indices and labels for printing later
-    sample_ids = { int(i[0]) : i[1] for i in zip(mutation_data['#sample_index'].unique(), mutation_data['sample_label'].unique()) }
+    sample_ids = { int(i[0]) : i[1] for i in zip(MUTATION_DF['#sample_index'].unique(), MUTATION_DF['sample_label'].unique()) }
     for i in sample_ids:
         print(i, sample_ids[i])
     num_samples =  len(sample_ids)
@@ -51,104 +48,38 @@ def main():
     # these lists are always even, and each pair (i,i+1) is an edge in the state tree
     state_trees = read_in_state_trees(args['statetrees'])
 
-    # store info from mutation_data pd.DataFrame in mutations list, containing Mutation objects as elements
+    # store info from MUTATION_DF pd.DataFrame in mutations list, containing Mutation objects as elements
     # infer purity from SNV data, but overwrite purity dict if purity file provided (next line)
-    mutations, purity = create_mutations(mutation_data, state_trees, not args['ccf'])
-    if args['purity'] is not None:
-        purity = read_purity(args['purity'], purity)
+    mutations = create_mutations(MUTATION_DF, state_trees, not args['ccf'])
 
     if args['record']:
         manager = mp.Manager()
         record = manager.list()
     if not args['iterative']:
         print("Using binary-search model selection")
-        run_coordinator_binary(mutations, num_samples, purity, args, record if args['record'] else None)
+        run_coordinator_binary(mutations, num_samples, PURITY, args, record if args['record'] else None)
     else:
         print("Using iterative model selection")
-        run_coordinator_iterative(mutations, sample_ids, num_samples, purity, args, record if args['record'] else None)
+        run_coordinator_iterative(mutations, sample_ids, num_samples, PURITY, args, record if args['record'] else None)
     if args['record']:
         with open('record.log.tsv', 'w') as o:
             o.write('#NUM_CLUSTERS\tRESTART\tSEED\tITERATION\tOBJECTIVE\n')
             for r in record:
                 o.write('{}\t{}\t{}\t{}\t{}\n'.format(r[0], r[1], r[2], r[3], r[4]))
 
-
-def parse_args():
-    description = "DeCiFer."
-    parser = argparse.ArgumentParser(description=description)
-    parser.add_argument("INPUT", type=str, help="Input file in DeCiFer format.")
-    parser.add_argument("-p","--purityfile", type=str, required=True, help="File with purity of each sample (TSV file in two columns`SAMPLE PURITY`)")
-    parser.add_argument("-b","--betabinomial", type=str, required=False, default=None, help="File with precisions for betabinomial fit (default: binomial likelihood)")
-    parser.add_argument("--ccf", required=False, default=False, action='store_true', help="Run with CCF instead of DCF (default: False)")
-    parser.add_argument("-k","--mink", type=int, required=False, default=2, help="Minimum number of clusters, which must be at least 2 (default: 2)")
-    parser.add_argument("-K","--maxk", type=int, required=False, default=12, help="Maximum number of clusters (default: 12)")
-    parser.add_argument("-r","--restarts", type=int, required=False, default=100, help="Number of restarts (default: 100)")
-    parser.add_argument("-t","--maxit", type=int, required=False, default=200, help="Maximum number of iterations per restart (default: 200)")
-    parser.add_argument("-e","--elbow", type=float, required=False, default=0.06, help="Elbow sensitivity, lower values increase sensitivity (default: 0.06)")
-    parser.add_argument("--binarysearch", required=False, default=False, action='store_true', help='Use binary-search model selection (default: False, iterative is used; use binary search when considering large numbers of clusters')
-    parser.add_argument("--record", required=False, default=False, action='store_true', help='Record objectives (default: False)')
-    parser.add_argument("-j","--jobs", type=int, required=False, default=mp.cpu_count(), help="Number of parallele jobs to use (default: equal to number of available processors)")
-    parser.add_argument("-o","--output", type=str, required=False, default="./decifer", help="Output prefix (default: ./decifer)")
-    parser.add_argument("--statetrees", type=str, required=False, default=None, help="Filename of state-trees file (default: use state_trees.txt in the package)")
-    parser.add_argument("--seed", type=int, required=False, default=None, help="Random-generator seed (default: None)")
-    parser.add_argument("--debug", required=False, default=False, action='store_true', help='single-threaded mode for development/debugging')
-    args = parser.parse_args()
-
-    if not os.path.isfile(args.INPUT):
-        raise ValueError("INPUT file does not exist!")
-    if args.mink < 2:
-        raise ValueError("The minimum number of clusters must be at least 2 since the first two clusters are always used to represent mutations that are either present or absent in all samples")
-
-    if args.statetrees is not None:
-        statetrees = args.statetrees
-    else:
-        statetrees = resource_filename(__name__, 'state_trees.txt')
-    if not os.path.isfile(statetrees):
-        raise ValueError("State tree file does not exist:\n{}".format(statetrees))
-    
-    if args.betabinomial is not None:
-        with open(args.betabinomial, 'r') as i:
-            betabinomial = {int(l.split()[0]) : float(l.split()[1]) for l in i if '#' not in l}
-    else:
-        betabinomial = None
-
-    if args.seed:
-        rand.seed(args.seed)
-        np.random.seed(seed=args.seed)
-
-    return {
-        "input" : args.INPUT,
-        "mink" : args.mink,
-        "maxk" : args.maxk,
-        "maxit" : args.maxit,
-        "purity" : args.purityfile,
-        "restarts" : args.restarts,
-        "elbow" : args.elbow,
-        "iterative" : not args.binarysearch,
-        "record" : args.record,
-        "J" : args.jobs,
-        "output" : args.output,
-        "ccf" : args.ccf,
-        "betabinomial" : betabinomial,
-        "statetrees" : statetrees,
-        "debug" : args.debug
-    }
-
-
-
-def run_coordinator_iterative(mutations, sample_ids, num_samples, purity, args, record):
+def run_coordinator_iterative(mutations, sample_ids, num_samples, PURITY, args, record):
     mink, maxk, maxit, prefix, restarts, ubleft, J = unpck(args)
     jobs = [(x, k, np.random.randint(low=0, high=2**10)) for x in range(restarts) for k in range(mink, maxk+1)]
     # run in single-thread mode for development/debugging
     if args['debug']:
         shared = defaultdict(dict)
         # make objects global
-        init_descent(mutations, num_samples, maxit, shared, record, args['betabinomial'], purity)
+        init_descent(mutations, num_samples, maxit, shared, record, args['betabinomial'], PURITY)
         for job in jobs:
             run_descent(job)
     else:
         manager, shared = setup_shared()
-        initargs = (mutations, num_samples, maxit, shared, record, args['betabinomial'], purity)
+        initargs = (mutations, num_samples, maxit, shared, record, args['betabinomial'], PURITY)
         pool = Pool(processes=min(J, len(jobs)), initializer=init_descent, initargs=initargs)
         bar = ProgressBar(total=len(jobs), length=30, verbose=False, lock=Lock(), counter=Value('i', 0))
         bar.progress(advance=False, msg="Started")
@@ -203,7 +134,7 @@ def run_coordinator_iterative(mutations, sample_ids, num_samples, purity, args, 
 
     write_results_CIs(prefix, num_samples, clus, sample_ids, CIs) 
 
-    write_results(prefix, C, CIs, clus, conf, bmut, purity, args['betabinomial'], 'CCF' if args['ccf'] else 'DCF')
+    write_results(prefix, C, CIs, clus, conf, bmut, PURITY, args['betabinomial'], 'CCF' if args['ccf'] else 'DCF')
     #write_results_decifer_format(bmut, clus, prefix, selected, num_samples, C)
 
 def print_feasibleVAFs(cluster_ids, muts, num_samples, bb, C):
@@ -307,13 +238,13 @@ def take_closest(myList, myNumber):
     else:
         return pos-1
 
-def run_coordinator_binary(mutations, num_samples, purity, args, record):
+def run_coordinator_binary(mutations, num_samples, PURITY, args, record):
     L, R, maxit, prefix, restarts, ubleft, J = unpck(args)
     results = {}
     def evaluate(V):
         if V not in results:
             sys.stderr.write('[{:%Y-%b-%d %H:%M:%S}]'.format(datetime.datetime.now()) + 'Computing for {} clusters...\n'.format(V))
-            results[V] = run(mutations, num_samples, V, maxit, prefix, purity, restarts, ubleft, J, record, args['betabinomial'])
+            results[V] = run(mutations, num_samples, V, maxit, prefix, PURITY, restarts, ubleft, J, record, args['betabinomial'])
         sys.stderr.write('[{:%Y-%b-%d %H:%M:%S}]'.format(datetime.datetime.now()) + 'Objective for {} clusters: {}\n'.format(V, results[V][-1]))
         return
 
@@ -334,14 +265,14 @@ def run_coordinator_binary(mutations, num_samples, purity, args, record):
     evaluate(R)
     selected = L if float(results[L][-1] - results[MAXR][-1]) / abs(results[MAXR][-1]) <= ubleft else R
     C, bmut, clus, conf, objs = results[selected]
-    write_results(prefix, C, clus, conf, bmut, purity, args['betabinomial'], 'CCF' if args['ccf'] else 'DCF')
+    write_results(prefix, C, clus, conf, bmut, PURITY, args['betabinomial'], 'CCF' if args['ccf'] else 'DCF')
     #write_results_decifer_format(bmut, clus, prefix, selected, num_samples, C)
 
 
-def run(mutations, num_samples, K, maxit, prefix, purity, restarts, ubleft, J, record, betabinomial):
+def run(mutations, num_samples, K, maxit, prefix, PURITY, restarts, ubleft, J, record, betabinomial):
     jobs = [(x, K, np.random.randint(low=0, high=2**10)) for x in range(restarts)]
     manager, shared = setup_shared()
-    initargs = (mutations, num_samples, maxit, shared, record, betabinomial, purity)
+    initargs = (mutations, num_samples, maxit, shared, record, betabinomial, PURITY)
     pool = Pool(processes=min(J, len(jobs)), initializer=init_descent, initargs=initargs)
     bar = ProgressBar(total=len(jobs), length=30, verbose=False, lock=Lock(), counter=Value('i', 0))
     bar.progress(advance=False, msg="Started")
@@ -383,7 +314,7 @@ def run_descent(job):
         #with warnings.catch_warnings() as w:
         #   warnings.simplefilter("ignore")
         np.seterr(all='warn')
-        C, best_mutations, mut_cluster_assignments, mut_config_assignments, obj, it = coordinate_descent(x, seed, mutations, num_samples, k, maxit, record, betabinomial, purity)
+        C, best_mutations, mut_cluster_assignments, mut_config_assignments, obj, it = coordinate_descent(x, seed, mutations, num_samples, k, maxit, record, betabinomial, PURITY)
         shared['C'][job] = C
         shared['bmut'][job] = best_mutations
         shared['clus'][job] = mut_cluster_assignments

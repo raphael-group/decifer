@@ -48,13 +48,13 @@ def read_input_file(filename):
         df.columns = header
     return df
 
-def read_purity(purity_file, purity):
-    purity = {}
+def read_purity(purity_file):
+    PURITY = {}
     with open(purity_file) as f:
         for line in f:
             line = line.strip().split('\t')
-            purity[int(line[0])] = float(line[1])
-    return purity
+            PURITY[int(line[0])] = float(line[1])
+    return PURITY
 
 def write_results(prefix, C, CIs, mut_cluster_assignments, mut_config_assignments, mutations, purity, bb, kind):
     with open('{}.output.tsv'.format(prefix), 'w') as out:

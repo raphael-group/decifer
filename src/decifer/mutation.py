@@ -130,7 +130,6 @@ def get_configs(_state_trees, CNs, mus, dcf_mode):
 def create_mutations(mutation_data, state_trees, dcf_mode=True):
     # From a mutation data file, create mutation dict of Mutation objects
     mutations = {}
-    purity = {}
 
     for idx in mutation_data.index:
         line = mutation_data.loc[idx]
@@ -161,13 +160,6 @@ def create_mutations(mutation_data, state_trees, dcf_mode=True):
                 # TODO
                 continue
 
-        # sum all clone proportions that aren't (1,1), use to update purity[sample]
-        mut_purity = sum([m for c, m in zip(CNs, mus) if c != (1, 1)])
-        try:
-            purity[sample] = max(mut_purity, purity[sample])
-        except:
-            purity[sample] = mut_purity
-
         # if multiple samples, encounter mutation index again
         # for newly encountered sample, append new a, d, and for each CN state, append the clone proportion
         if index in mutations:
@@ -188,4 +180,4 @@ def create_mutations(mutation_data, state_trees, dcf_mode=True):
             mut = Mutation(configs, alltrees, [a, ], [d, ], label, index)
             mutations[index] = mut
 
-    return [mutations[m] for m in mutations], purity
+    return [mutations[m] for m in mutations]
