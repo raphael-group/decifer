@@ -1,0 +1,16 @@
+3 #anatomical sites 
+3 #samples 
+4 #mutation clusters 
+#sample_index	sample_label	anatomical_site_index	anatomical_site_label	cluster_index	cluster_label	f_lb	f_ub	
+0	D	0	D	0	1	0.9891	0.9999	
+0	D	0	D	1	2	0.8034	0.9993	
+0	D	0	D	2	5	0.3673	0.7063	
+0	D	0	D	3	6	0.0001	0.0156	
+1	C	1	C	0	1	0.9855	0.9998	
+1	C	1	C	1	2	0.0	0.0239	
+1	C	1	C	2	5	0.3226	0.6476	
+1	C	1	C	3	6	0.4811	0.6494	
+2	A	2	A	0	1	0.9859	0.9999	
+2	A	2	A	1	2	0.0	0.0256	
+2	A	2	A	2	5	0.2753	0.5902	
+2	A	2	A	3	6	0.7925	0.8322	

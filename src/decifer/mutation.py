@@ -6,7 +6,6 @@ date: 2020-05-04
 """
 from decifer.config import Config
 import warnings
-import pandas as pd
 
 
 class Mutation:
@@ -139,7 +138,6 @@ def create_mutations(mutation_data, state_trees, dcf_mode=True):
         a = int(line['var'])
         d = a + ref
         sample = int(line['#sample_index'])
-
 
         # 6 columns for SNV info (sample index/label, character index/label, REF counts, ALT counts)
         # remainder of columns for copy number states, each state having 3 columns

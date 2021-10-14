@@ -5,6 +5,7 @@ __main__.py top-level script and also the config.py script to rescale calculatio
 by purity.
 """
 
+import sys
 from decifer.parse_args import args
 from decifer.fileio import read_input_file, read_purity
 
@@ -47,12 +48,40 @@ def calc_purity(MUTATION_DF):
 
     return PURITY
 
-# read input mutation data, store as pd.DataFrame
-MUTATION_DF = read_input_file(args["input"])
+def filter_MUTATION_DF(MUTATION_DF, PURITY):
+    purity_new = {}
 
+    MUTATION_DF["#sample_index"] = MUTATION_DF["#sample_index"].astype("int")
+    # recode_dict is for filtering MUTATION_DF later
+    recode_dict = {}
+    new_index = 0
+    # find which samples have inappropriate ploidy
+    for old_index in range(len(PURITY.keys())):
+        if PURITY[old_index] > 0.0 and PURITY[old_index] <= 1.0:
+            recode_dict[old_index] = new_index
+            purity_new[new_index] = PURITY[old_index]
+            # new_index doesn't get incremented if bad ploidy
+            new_index += 1
+    # only include sample indices with ploidy > 0 and <= 1
+    MUTATION_DF = MUTATION_DF.loc[ MUTATION_DF["#sample_index"].isin(list(recode_dict.keys())) ]
+    # re-index samples so that they start at 0 and are consecutive integers
+    MUTATION_DF = MUTATION_DF.replace({"#sample_index": recode_dict})
+    return MUTATION_DF, purity_new
+
+# Read/calculate purity information
 if args['purity'] is not None:
     PURITY = read_purity(args['purity'])
 else:
     # calculate purity from the mutation file as the maximum proportion of
     # non-diploid (not (1,1)) clones
     PURITY = calc_purity(MUTATION_DF)
+for sample in PURITY:
+    if PURITY[sample] <= 0.0 or PURITY[sample] > 1.0:
+        sys.stderr.write(f"WARNING: sample with index {sample} has purity of zero, negative, or greater than one, and will be removed\n")
+
+# read input mutation data, store as pd.DataFrame
+MUTATION_DF = read_input_file(args["input"])
+
+# filter samples with inappropriate PURITY values
+# update PURITY dict to reflect re-indexed samples
+MUTATION_DF, PURITY = filter_MUTATION_DF(MUTATION_DF, PURITY)
