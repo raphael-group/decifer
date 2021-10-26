@@ -4,29 +4,26 @@ config.py
 author: gsatas
 date: 2020-05-04
 """
-#import warnings
-#warnings.filterwarnings("error", '.*divide by zero.*')
 
+from decifer.process_input import PURITY
 
 THRESHOLD=0.05
 
 
-class config:
+class Config:
     def __init__(self, mut_state, other_states, cn_props, desc_set, dcf_mode = True):
         '''
         mut_state: 2-tuple that indicates the CN state that the
             mutation occurs in
         other_states: a list of 3-tuples indicating all other mutation
             states
-        cn_props: a (dict) mapping from 2-tuple CN states to proportions for each state
+        cn_props: a dict of lists, mapping 2-tuple CN states (keys) to proportions for each sample (list value)
         '''
         self.mut_state = mut_state
         self.other_states = other_states
         self.cn_props = cn_props
         self.desc_set = desc_set
         self.dcf_mode = dcf_mode
-        #print self.desc_set
-
 
     def F(self, sample):
         '''returns fractional copy number F'''
@@ -51,8 +48,9 @@ class config:
     #    return sum([self.cn_props[s[:2]] * (s[2]-1) for s in self.other_states if s[2] > 0])
 
     def c(self, lam, sample):
-        return self.cn_props[self.mut_state][sample] * lam \
+        c_unnorm = self.cn_props[self.mut_state][sample] * lam \
             + sum([self.cn_props[s[:2]][sample] for s in self.other_states if s[2] >= 1])
+        return c_unnorm/PURITY[sample]
 
     def v(self, lam, sample):
             F = self.F(sample)
@@ -61,25 +59,32 @@ class config:
             return 1./F * val
 
     def d(self, lam, sample):
-        return self.cn_props[self.mut_state][sample] * lam \
+        # multiplies lam by SSCN CN proportion in which mutation arose, canceling out earlier division in v_to_lam
+        d_unnorm = self.cn_props[self.mut_state][sample] * lam \
                 + sum([self.cn_props[s[:2]][sample] for s in self.other_states if s in self.desc_set])
+        return d_unnorm/PURITY[sample]
 
     def c_to_lam(self, c, sample):
             if self.cn_props[self.mut_state][sample] == 0: return 0
-            lam = (c - sum([self.cn_props[s[:2]][sample] for s in self.other_states if s[2] >= 1]))/self.cn_props[self.mut_state][sample]
+            lam = (c*PURITY[sample] - sum([self.cn_props[s[:2]][sample] for s in self.other_states if s[2] >= 1]))/self.cn_props[self.mut_state][sample]
             return lam
 
     def v_to_lam(self, v, sample):
             if self.cn_props[self.mut_state][sample] == 0: return 0
+            # sum term iterates across other_states in which m (of (x,y,m)) >=1
+            # multiplies CN proportions for these states by m
+            # and divides by the SSCN CN proportion in which mutation arose
+            # note: other_states include any genotype (x,y,m) with CN state != mut_state
             lam = (v*self.F(sample) - sum([self.cn_props[s[:2]][sample]*s[2] for s in self.other_states if s[2] >= 1]))/self.cn_props[self.mut_state][sample]
             return lam
 
     def d_to_lam(self, d, sample):
             if self.cn_props[self.mut_state][sample] == 0: return 0
-            lam = (d - sum([self.cn_props[s[:2]][sample] for s in self.other_states if s in self.desc_set]))/self.cn_props[self.mut_state][sample]
+            lam = (d*PURITY[sample] - sum([self.cn_props[s[:2]][sample] for s in self.other_states if s in self.desc_set]))/self.cn_props[self.mut_state][sample]
             return lam
 
     def v_to_cf(self, v, sample, truncate = True):
+        # calls d_to_v or c_to_v depending on dcf_mode
         if self.dcf_mode:
             cf = self.v_to_d(v, sample, truncate)
         else:
@@ -87,6 +92,7 @@ class config:
         return min(max(cf, 0.0), 1.0)
 
     def cf_to_v(self, c, sample, truncate = True):
+        # calls d_to_v or c_to_v depending on dcf_mode
         if not (self.cf_bounds(sample)[0] - THRESHOLD <= c <= self.cf_bounds(sample)[1] + THRESHOLD):
             return False
         if self.dcf_mode:
@@ -148,12 +154,15 @@ class config:
         # NOTE, this assumes samples are always in the same order in the input file
         # and that all copy-number states are included for all samples even if the prop. is 0
         try:
+            # ensure same number of CN states for this sample compared to previous samples
             assert(len(cn_props) == len(self.cn_props))
+            # ensure the CN states are also identical
             assert(set(cn_props.keys()) == set(self.cn_props.keys()) )
         except AssertionError:
             print(cn_props)
             print(self.cn_props)
             raise Exception("The same copy-number states and proportions must be provided across samples for a mutation, even when the proportion is 0. Mutation {}".format(mut_label))
 
+        # append CN proportions for this sample
         for c in cn_props:
             self.cn_props[c].append(cn_props[c])
