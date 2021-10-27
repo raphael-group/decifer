@@ -28,8 +28,8 @@ import seaborn as sns
 
 from collections import defaultdict
 
-from fileio import *
-from decifer import ProgressBar
+from decifer.fileio import *
+from decifer.__main__ import ProgressBar
 
 
 SEQERROR = 1e-03
