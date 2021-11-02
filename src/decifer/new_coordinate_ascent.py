@@ -92,7 +92,7 @@ def optimize_assignments(mutations, C, num_samples, num_clusters, bb, last=False
         m.assigned_config = best[1]
         m.assigned_cluster = best[2]
         for sam in range(num_samples):
-            assert m.assigned_config.cf_bounds(sam)[0] - 0.05 <= C[sam][m.assigned_cluster] < m.assigned_config.cf_bounds(sam)[1] + 0.05, (C[sam][m.assigned_cluster], m.assigned_config.cf_bounds(sam), m.assigned_config.d_to_lam(C[sam][m.assigned_cluster], sam))
+            assert m.assigned_config.cf_bounds(sam)[0] - 0.05 <= C[sam][m.assigned_cluster] <= m.assigned_config.cf_bounds(sam)[1] + 0.05, (C[sam][m.assigned_cluster], m.assigned_config.cf_bounds(sam), m.assigned_config.d_to_lam(C[sam][m.assigned_cluster], sam))
         return best[0]
 
     return mutations, sum(map(lambda m : update(m, select(m)), mutations))
