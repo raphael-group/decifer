@@ -143,3 +143,10 @@ def write_results_CIs(prefix, num_samples, clus, sample_ids, CIs, printallk, k):
                 info.extend( [cluster_index, cluster_name] )
                 info.extend( [CIs[sample_index][cluster_name][0], CIs[sample_index][cluster_name][1], "\n"])
                 f.write("\t".join(list(map(str, info))))
+
+def write_model_selection_results( k, mink, maxk, objs, elbow, selected, prefix ):
+    with open(f"{prefix}_model_selection.tsv", 'w') as f:
+        f.write('\t'.join(['#NUM_CLUSTERS', 'BEST_OBJ', 'ELBOW_SCORE', 'SELECTED', "\n"]))
+        for k in range(mink, maxk + 1):
+            f.write('\t'.join(map(str, [k, objs[k], elbow[k] if k < maxk else 'NaN', selected == k])))
+            f.write("\n")

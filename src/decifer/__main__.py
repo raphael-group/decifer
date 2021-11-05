@@ -21,7 +21,7 @@ from bisect import bisect_left
 
 # decifer
 from decifer.parse_args import args
-from decifer.fileio import write_results, write_results_CIs, read_in_state_trees
+from decifer.fileio import write_results, write_results_CIs, read_in_state_trees, write_model_selection_results
 from decifer.new_coordinate_ascent import coordinate_descent, objective
 from decifer.mutation import create_mutations
 from decifer.process_input import PURITY, MUTATION_DF
@@ -102,9 +102,8 @@ def run_coordinator_iterative(mutations, sample_ids, num_samples, PURITY, args, 
         selected = max(range(mink, maxk), key=(lambda k : elbow[k]))
     else:
         selected = mink
-    print('\t'.join(['#NUM_CLUSTERS', 'BEST_OBJ', 'ELBOW_SCORE', 'SELECTED']))
-    for k in range(mink, maxk+1):
-        print('\t'.join(map(str, [k, objs[k], elbow[k] if k < maxk else 'NaN', selected==k])))
+
+    write_model_selection_results( k, mink, maxk, objs, elbow, selected, prefix )
 
     if args['printallk']:
         k_to_print = [ k for k in range(mink, maxk+1) ]

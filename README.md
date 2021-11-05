@@ -149,7 +149,7 @@ DeCiFer can use the following additional and optional input data:
 <a name="output"></a>
 ### Output
 
-DeCiFer's main output file (ending with `.output.tsv`) corresponds to a single TSV file encoding a dataframe where every row corresponds to an input mutation and with the following fields:
+DeCiFer's main output file (ending with `_output.tsv`) corresponds to a single TSV file encoding a dataframe where every row corresponds to an input mutation and with the following fields:
 
 | Name | Description |
 |------|-------------|
@@ -168,7 +168,9 @@ DeCiFer's main output file (ending with `.output.tsv`) corresponds to a single T
 
 For the column containing the `true_cluster_DCF`, the CIs correspond to 95% confidence intervals that have been corrected for multiple tests. Specifically, for each cluster, we find the lower CI by finding the X=[0.025/(number of hypothesis tests)] quantile, where the number of tests corresponds to (number of clusters)\*(number of samples for patient). The same procedure is used for the upper CI, by finding the quantile that corresponds to 1-X.
 
-These cluster CIs may also be found in the output file ending in `.cluster.CIs.tsv`. This file contains this information in a more consensed format, reporting only the upper and lower CIs for each cluster for each sample (in column `f_lb` and `f_ub` respectively).
+These cluster CIs may also be found in the output file ending in `_cluster.CIs.tsv`. This file contains this information in a more consensed format, reporting only the upper and lower CIs for each cluster for each sample (in column `f_lb` and `f_ub` respectively).
+
+Lastly, the file ending in `_model_selection.tsv` shows how decifer selected the best value of K clusters. 
 
 <a name="requirements"></a>
 ### System requirements
@@ -189,7 +191,8 @@ Each demo is an exemplary and guided execution of a DeCiFer.Each demo is simulta
 
 - We recommend to initially select a reasonably high maximum number of clusters with option `-K`, e.g. a number that is ~2-3 times as large as `(number of samples for the patient)+2`. Further increase `-K` if the selected best number of clusters is close to the maximum limit.
 - DeCiFer outputs the decreasing objective function which is used to select the number of clusters based on the Elbow criterion; if the function is still substantially decreasing near the selected maximum number of clusters please try to further increase this value.
-- You can adapt the sensitivity of the Elbow criterion by adjusting the corresponding parameter.
+- You can adapt the sensitivity of the Elbow criterion by adjusting the corresponding `--elbow` parameter. In our experience, decreasing this value to ~0.002 gives better results for whole-genome sequences collected from ~5 samples from the same tumor; elbow values higher than this can result in overclustering with clusters containing visually distinct groups of DCF/CCF values.
+- Although DeCiFer performs model selection to select the best number of K clusters, given the specified range of clusters from `--mink` to `--maxk` and the `--elbow` parameter, you can use the `--printallk` to print the output for all values of K specified.
 
 <a name="development"></a>
 ## Development
