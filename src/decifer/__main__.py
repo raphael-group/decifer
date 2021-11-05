@@ -106,11 +106,19 @@ def run_coordinator_iterative(mutations, sample_ids, num_samples, PURITY, args, 
     for k in range(mink, maxk+1):
         print('\t'.join(map(str, [k, objs[k], elbow[k] if k < maxk else 'NaN', selected==k])))
 
-    C, bmut, clus, conf, objs = map(lambda D : shared[D][best[selected]], ['C', 'bmut', 'clus', 'conf', 'objs'])
-    
-    # C is list of lists; rows are samples, columns are cluster IDs, values are CCFs
-    #CIs = [[()]*len(C[i]) for i in range(len(C))] # list of lists to store CIs, same structure as C
-    CIs, PDFs = compute_CIs_mp(set(clus), bmut, num_samples, args['betabinomial'], J, C)
+    if args['printallk']:
+        k_to_print = [ k for k in range(mink, maxk+1) ]
+    else:
+        k_to_print = [ selected ]
+    for k in k_to_print:
+        C, bmut, clus, conf, objs = map(lambda D : shared[D][best[k]], ['C', 'bmut', 'clus', 'conf', 'objs'])
+        # C is list of lists; rows are samples, columns are cluster IDs, values are CCFs
+        #CIs = [[()]*len(C[i]) for i in range(len(C))] # list of lists to store CIs, same structure as C
+        CIs, PDFs = compute_CIs_mp(set(clus), bmut, num_samples, args['betabinomial'], J, C)
+
+        write_results_CIs(prefix, num_samples, clus, sample_ids, CIs, args['printallk'], k)
+        write_results(prefix, C, CIs, clus, conf, bmut, PURITY, args['betabinomial'], 'CCF' if args['ccf'] else 'DCF', args['printallk'], k)
+        #write_results_decifer_format(bmut, clus, prefix, selected, num_samples, C)
 
     """
     # FOR TESTING
@@ -131,10 +139,7 @@ def run_coordinator_iterative(mutations, sample_ids, num_samples, PURITY, args, 
                 f.write("\n")
     """
 
-    write_results_CIs(prefix, num_samples, clus, sample_ids, CIs) 
 
-    write_results(prefix, C, CIs, clus, conf, bmut, PURITY, args['betabinomial'], 'CCF' if args['ccf'] else 'DCF')
-    #write_results_decifer_format(bmut, clus, prefix, selected, num_samples, C)
 
 def print_feasibleVAFs(cluster_ids, muts, num_samples, bb, C):
     with open("feasibleVAFs.txt", 'w') as f:

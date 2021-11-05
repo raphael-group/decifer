@@ -25,6 +25,7 @@ def parse_args():
     parser.add_argument("--statetrees", type=str, required=False, default=None, help="Filename of state-trees file (default: use state_trees.txt in the package)")
     parser.add_argument("--seed", type=int, required=False, default=None, help="Random-generator seed (default: None)")
     parser.add_argument("--debug", required=False, default=False, action='store_true', help='single-threaded mode for development/debugging')
+    parser.add_argument("--printallk", required=False, default=False, action='store_true', help='Print all results for each value of K explored by DeCiFer')
     args = parser.parse_args()
 
     if not os.path.isfile(args.INPUT):
@@ -64,7 +65,8 @@ def parse_args():
         "ccf" : args.ccf,
         "betabinomial" : betabinomial,
         "statetrees" : statetrees,
-        "debug" : args.debug
+        "debug" : args.debug,
+        "printallk" : args.printallk
     }
 
 args = parse_args()
