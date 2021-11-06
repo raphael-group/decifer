@@ -56,8 +56,12 @@ def read_purity(purity_file):
             PURITY[int(line[0])] = float(line[1])
     return PURITY
 
-def write_results(prefix, C, CIs, mut_cluster_assignments, mut_config_assignments, mutations, purity, bb, kind):
-    with open('{}.output.tsv'.format(prefix), 'w') as out:
+def write_results(prefix, C, CIs, mut_cluster_assignments, mut_config_assignments, mutations, purity, bb, kind, printallk, k):
+    if printallk:
+        name = f"{prefix}_output_K{k}.tsv"
+    else:
+        name = f"{prefix}_output.tsv"
+    with open(name, 'w') as out:
         out.write('mut_index\t'+"\t".join(['VAR_{}'.format(i) for i in range(len(C))]+['TOT_{}'.format(i) for i in range(len(C))])+'\tcluster\tstate_tree\t'+"\t".join(['true_cluster_{}{}'.format(kind, i) for i in range(len(C))] + ['point_estimate_{}{}'.format(kind, i)  for i in range(len(C))] + ['cmm_CCF{}'.format(i) for i in range(len(C))]) + '\tExplained\tLHs' + '\n')
         #for mut, clust in zip(mutations, mut_cluster_assignments):
         for mut, clust in zip(mutations, mut_cluster_assignments):
@@ -121,8 +125,12 @@ def write_results_BIC(bic, ll, num_clusters, prefix):
     with open('{}.bic'.format(prefix), 'a') as out:
         out.write('\t'.join(map(str,[num_clusters, ll, bic])) + '\n')
 
-def write_results_CIs(prefix, num_samples, clus, sample_ids, CIs):
-    with open('{}.cluster.CIs.tsv'.format(prefix), 'w') as f:
+def write_results_CIs(prefix, num_samples, clus, sample_ids, CIs, printallk, k):
+    if printallk:
+        name = f"{prefix}_clusterCIs_K{k}.tsv"
+    else:
+        name = f"{prefix}_clusterCIs.tsv"
+    with open(name, 'w') as f:
         f.write(" ".join( [str(num_samples), "#anatomical sites", "\n"] ))
         f.write(" ".join( [str(num_samples), "#samples", "\n"] ))
         f.write(" ".join( [str(len(set(clus))), "#mutation clusters", "\n"] ))
@@ -135,3 +143,10 @@ def write_results_CIs(prefix, num_samples, clus, sample_ids, CIs):
                 info.extend( [cluster_index, cluster_name] )
                 info.extend( [CIs[sample_index][cluster_name][0], CIs[sample_index][cluster_name][1], "\n"])
                 f.write("\t".join(list(map(str, info))))
+
+def write_model_selection_results( k, mink, maxk, objs, elbow, selected, prefix ):
+    with open(f"{prefix}_model_selection.tsv", 'w') as f:
+        f.write('\t'.join(['#NUM_CLUSTERS', 'BEST_OBJ', 'ELBOW_SCORE', 'SELECTED', "\n"]))
+        for k in range(mink, maxk + 1):
+            f.write('\t'.join(map(str, [k, objs[k], elbow[k] if k < maxk else 'NaN', selected == k])))
+            f.write("\n")
