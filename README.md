@@ -192,7 +192,7 @@ Each demo is an exemplary and guided execution of a DeCiFer.Each demo is simulta
 - We recommend to initially select a reasonably high maximum number of clusters with option `-K`, e.g. a number that is ~2-3 times as large as `(number of samples for the patient)+2`. Further increase `-K` if the selected best number of clusters is close to the maximum limit.
 - DeCiFer outputs the decreasing objective function which is used to select the number of clusters based on the Elbow criterion; if the function is still substantially decreasing near the selected maximum number of clusters please try to further increase this value.
 - You can adapt the sensitivity of the Elbow criterion by adjusting the corresponding `--elbow` parameter. In our experience, decreasing this value to ~0.002 gives better results for whole-genome sequences collected from ~5 samples from the same tumor; elbow values higher than this can result in overclustering with clusters containing visually distinct groups of DCF/CCF values.
-- Although DeCiFer performs model selection to select the best number of K clusters, given the specified range of clusters from `--mink` to `--maxk` and the `--elbow` parameter, you can use the `--printallk` to print the output for all values of K specified.
+- Although DeCiFer performs model selection to select the best number of K clusters, given the specified range of clusters from `--mink` to `--maxk` and the `--elbow` parameter, you can use the `--printallk` to print the output for all values of K specified. One output file is printed per value of K, each ending in `_K#.tsv` where `#` is the number of clusters.
 
 <a name="development"></a>
 ## Development
