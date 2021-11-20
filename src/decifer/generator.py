@@ -183,8 +183,9 @@ def plot_binomial(overlap, baf, snps, samples):
     for x, sam in enumerate(sorted(samples)):
         obsbaf = (lambda c, o : float(snps[c][o][sam][rand.randint(0, 1)]) / float(sum(snps[c][o][sam])))
         form = (lambda c, s, o : {'CN' : baf[c][s][sam], 'Observed BAF' : obsbaf(c, o)})
-        df = [form(c, s, o) for c in overlap for s in overlap[c] for o in overlap[c][s] if sam in overlap[c][s][o] and sam in baf[c][s]]
-        g = distplot_fig(data=pd.DataFrame(df), x='Observed BAF', hue='CN', ax=axes[x])
+        df = [form(c, s, o) for c in overlap for s in overlap[c] for o in overlap[c][s] if sam in overlap[c][s][o] and sam in baf[c][s] and sum(snps[c][o][sam]) > 0]
+        #g = distplot_fig(data=pd.DataFrame(df), x='Observed BAF', hue='CN', ax=axes[x])
+        g = distplot_fig(data=pd.DataFrame(df), x='Observed BAF', hue='CN')
     plt.savefig('test.png', dpi=600, bbox_inches='tight')
         
 
