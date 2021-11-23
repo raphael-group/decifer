@@ -104,7 +104,7 @@ def run_coordinator_iterative(mutations, sample_ids, num_samples, PURITY, args, 
     else:
         selected = mink
 
-    write_model_selection_results( k, mink, maxk, objs, elbow, selected, prefix )
+    write_model_selection_results( mink, maxk, objs, elbow, selected, prefix )
 
     if args['printallk']:
         k_to_print = [ k for k in range(mink, maxk+1) ]
