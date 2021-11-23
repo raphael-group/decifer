@@ -48,9 +48,10 @@ def main():
     sys.stderr.write('The number of retained SNPs is {} over a total of {} SNPs ({:.2%})\n'.format(sel, tot, sel / float(tot)))
     sys.stderr.write('> Fitting Beta-Binomial\n')
     betabinom = fit(baf, overlap, samples, args['restarts'], args['skip'], args['J'])
-    print('#SAMPLE\tPRECISION\tNLH')
-    for sam in sorted(betabinom):
-        print('\t'.join(map(str, [sam, betabinom[sam][0], betabinom[sam][1]])))
+    with open(f"{args['output']}_betabinom.tsv", 'w') as out:
+        out.write('#SAMPLE\tPRECISION\tNLH\n')
+        for sam in sorted(betabinom):
+            out.write('\t'.join(map(str, [sam, betabinom[sam][0], betabinom[sam][1], "\n"])))
     sys.stderr.write('> Plotting binomial fit\n')
     set_style()
     plot_binomial(overlap, baf, snps, samples)
