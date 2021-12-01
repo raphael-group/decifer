@@ -33,6 +33,6 @@ def test_end2end():
                         check_less_precise=3)
     """
 
-    test_df = pd.read_csv(f"{test_out}.cluster.CIs.tsv", "\t", skiprows=3)
-    truth_df = pd.read_csv(f"{this_dir}/data/decifer.cluster.CIs.tsv", "\t", skiprows=3)
+    test_df = pd.read_csv(f"{test_out}_clusterCIs.tsv", "\t", skiprows=3)
+    truth_df = pd.read_csv(f"{this_dir}/data/decifer_clusterCIs.tsv", "\t", skiprows=3)
     assert_frame_equal(test_df, truth_df)
