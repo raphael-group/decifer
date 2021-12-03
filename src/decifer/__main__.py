@@ -26,6 +26,8 @@ from decifer.new_coordinate_ascent import coordinate_descent, objective
 from decifer.mutation import create_mutations
 from decifer.process_input import PURITY, MUTATION_DF
 from decifer.progress_bar import ProgressBar
+from decifer.generator import fit_betabinom
+
 
 def main():
     sys.stderr.write('\n'.join(['Arguments:'] + ['\t{} : {}'.format(a, args[a]) for a in args]) + '\n')
@@ -52,34 +54,44 @@ def main():
     # infer purity from SNV data, but overwrite purity dict if purity file provided (next line)
     mutations = create_mutations(MUTATION_DF, state_trees, not args['ccf'])
 
+    if args['betabinomial']:
+        betabinom_out = fit_betabinom(args)
+        # invert sample_ids to get index for each sample name, according to input file
+        get_index = {v : k for k,v in sample_ids.items()}
+        betabinomial = {get_index[sam] : betabinom_out[sam][0] for sam in betabinom_out.keys()}
+
     if args['record']:
         manager = mp.Manager()
         record = manager.list()
     if not args['iterative']:
         print("Using binary-search model selection")
-        run_coordinator_binary(mutations, num_samples, PURITY, args, record if args['record'] else None)
+        run_coordinator_binary(mutations, num_samples, PURITY, args,
+                               record if args['record'] else None,
+                               betabinomial if args['betabinomial'] else None)
     else:
         print("Using iterative model selection")
-        run_coordinator_iterative(mutations, sample_ids, num_samples, PURITY, args, record if args['record'] else None)
+        run_coordinator_iterative(mutations, sample_ids, num_samples, PURITY, args,
+                                  record if args['record'] else None,
+                                  betabinomial if args['betabinomial'] else None)
     if args['record']:
         with open('record.log.tsv', 'w') as o:
             o.write('#NUM_CLUSTERS\tRESTART\tSEED\tITERATION\tOBJECTIVE\n')
             for r in record:
                 o.write('{}\t{}\t{}\t{}\t{}\n'.format(r[0], r[1], r[2], r[3], r[4]))
 
-def run_coordinator_iterative(mutations, sample_ids, num_samples, PURITY, args, record):
+def run_coordinator_iterative(mutations, sample_ids, num_samples, PURITY, args, record, betabinomial):
     mink, maxk, maxit, prefix, restarts, ubleft, J = unpck(args)
     jobs = [(x, k, np.random.randint(low=0, high=2**10)) for x in range(restarts) for k in range(mink, maxk+1)]
     # run in single-thread mode for development/debugging
     if args['debug']:
         shared = defaultdict(dict)
         # make objects global
-        init_descent(mutations, num_samples, maxit, shared, record, args['betabinomial'], PURITY)
+        init_descent(mutations, num_samples, maxit, shared, record, betabinomial, PURITY)
         for job in jobs:
             run_descent(job)
     else:
         manager, shared = setup_shared()
-        initargs = (mutations, num_samples, maxit, shared, record, args['betabinomial'], PURITY)
+        initargs = (mutations, num_samples, maxit, shared, record, betabinomial, PURITY)
         pool = Pool(processes=min(J, len(jobs)), initializer=init_descent, initargs=initargs)
         bar = ProgressBar(total=len(jobs), length=30, verbose=False, lock=Lock(), counter=Value('i', 0))
         bar.progress(advance=False, msg="Started")
@@ -114,10 +126,10 @@ def run_coordinator_iterative(mutations, sample_ids, num_samples, PURITY, args, 
         C, bmut, clus, conf, objs = map(lambda D : shared[D][best[k]], ['C', 'bmut', 'clus', 'conf', 'objs'])
         # C is list of lists; rows are samples, columns are cluster IDs, values are CCFs
         #CIs = [[()]*len(C[i]) for i in range(len(C))] # list of lists to store CIs, same structure as C
-        CIs, PDFs = compute_CIs_mp(set(clus), bmut, num_samples, args['betabinomial'], J, C)
+        CIs, PDFs = compute_CIs_mp(set(clus), bmut, num_samples, betabinomial, J, C)
 
         write_results_CIs(prefix, num_samples, clus, sample_ids, CIs, args['printallk'], k)
-        write_results(prefix, C, CIs, clus, conf, bmut, PURITY, args['betabinomial'], 'CCF' if args['ccf'] else 'DCF', args['printallk'], k)
+        write_results(prefix, C, CIs, clus, conf, bmut, PURITY, betabinomial, 'CCF' if args['ccf'] else 'DCF', args['printallk'], k)
         #write_results_decifer_format(bmut, clus, prefix, selected, num_samples, C)
 
     """
@@ -242,13 +254,13 @@ def take_closest(myList, myNumber):
     else:
         return pos-1
 
-def run_coordinator_binary(mutations, num_samples, PURITY, args, record):
+def run_coordinator_binary(mutations, num_samples, PURITY, args, record, betabinomial):
     L, R, maxit, prefix, restarts, ubleft, J = unpck(args)
     results = {}
     def evaluate(V):
         if V not in results:
             sys.stderr.write('[{:%Y-%b-%d %H:%M:%S}]'.format(datetime.datetime.now()) + 'Computing for {} clusters...\n'.format(V))
-            results[V] = run(mutations, num_samples, V, maxit, prefix, PURITY, restarts, ubleft, J, record, args['betabinomial'])
+            results[V] = run(mutations, num_samples, V, maxit, prefix, PURITY, restarts, ubleft, J, record, betabinomial)
         sys.stderr.write('[{:%Y-%b-%d %H:%M:%S}]'.format(datetime.datetime.now()) + 'Objective for {} clusters: {}\n'.format(V, results[V][-1]))
         return
 
@@ -269,7 +281,7 @@ def run_coordinator_binary(mutations, num_samples, PURITY, args, record):
     evaluate(R)
     selected = L if float(results[L][-1] - results[MAXR][-1]) / abs(results[MAXR][-1]) <= ubleft else R
     C, bmut, clus, conf, objs = results[selected]
-    write_results(prefix, C, clus, conf, bmut, PURITY, args['betabinomial'], 'CCF' if args['ccf'] else 'DCF')
+    write_results(prefix, C, clus, conf, bmut, PURITY, betabinomial, 'CCF' if args['ccf'] else 'DCF')
     #write_results_decifer_format(bmut, clus, prefix, selected, num_samples, C)
 
 
