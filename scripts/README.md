@@ -4,7 +4,18 @@ DeCiFer uses information about copy-number aberrations (CNAs) and single-nucleot
 
 ### CNA calls
 
-We quantify CNAs using [HATCHet](https://github.com/raphael-group/hatchet), although you may use any program to identify CNAs as long as you have a file of CNAs with the same format as `best.seg.ucn` (HATCHet output file) in this directory.
+We quantify CNAs using [HATCHet](https://github.com/raphael-group/hatchet), although you may use any program to identify CNAs as long as you have a file of CNAs with the same format as `best.seg.ucn` (HATCHet output file) in this directory, which has the following format:
+
+| Field | Description |
+|-------|-------------|
+| `#CHR` | The name of a chromosome |
+| `START` | The genomic position that starts the corresponding genomic segment |
+| `END` | The genomic position that ends the corresponding genomic segment |
+| `SAMPLE` | The name of a sample |
+| `cn_normal` | The copy number state of the normal diploid clone equal to <code>1&#124;1</code> |
+| `u_normal` | The normal admixture of the normal diploid cells in the corresponding sample |
+| `cn_clone${n}` | The copy number state of the `${n}` tumor clone in the format <code>A&#124;B</code> where `A` and `B` are the two allele-specific copy numbers of the corresponding genomic bin |
+| `u_clone${n}` | The clone proportion of the `${n}` tumor clone in the corresponding sample |
 
 ### SNV calls
 

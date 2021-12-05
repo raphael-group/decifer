@@ -142,9 +142,11 @@ For generating the input files for DeCiFer, please see the [scripts](/scripts) d
 
 DeCiFer can use the following additional and optional input data:
 
-1. To use beta-binomial distributions to cluster mutations (default is binomial), pass the `--betabinomial` flag to `decifer` along with 2 additional arguments, `--segfile` and `--snpfile`, which are used to specify the locations of 2 files that contain information to parameterize the beta-binomial for each sample.
+#### 1. Data for fitting beta-binomial distributions to read count data
 
-#### snpfile
+To use beta-binomial distributions to cluster mutations (default is binomial), pass the `--betabinomial` flag to `decifer` along with 2 additional arguments, `--snpfile` and `--segfile`, which are used to specify the locations of 2 files that contain information to parameterize the beta-binomial for each sample. 
+
+The file passed to DeCiFer via `--snpfile` contains information about the read counts of *germline* (not somatic) variants and has the following format:
 
 | Field | Description |
 |-------|-------------|
@@ -154,23 +156,12 @@ DeCiFer can use the following additional and optional input data:
 | `REF_COUNT` | Number of reads harboring reference allele in `POS` |
 | `ALT_COUNT` | Number of reads harboring alternate allele in `POS` |
 
-#### segfile 
 
-Note that the following file format, which specifies the allele-specific copy number per segment, is the same as that used by the [vcf_2_decifer.py](/scripts) python script that generates the input files for DeCiFer. 
+The file passed to DeCiFer via `--segfile`, which specifies the allele-specific copy number per segment, is the same as the `best.seg.ucn` file used by the [vcf_2_decifer.py](/scripts) python script that generates the input files for DeCiFer. Please simply specify the location of this file.
 
-| Field | Description |
-|-------|-------------|
-| `#CHR` | The name of a chromosome |
-| `START` | The genomic position that starts the corresponding genomic segment |
-| `END` | The genomic position that ends the corresponding genomic segment |
-| `SAMPLE` | The name of a sample |
-| `cn_normal` | The copy number state of the normal diploid clone equal to <code>1&#124;1</code> |
-| `u_normal` | The normal admixture of the normal diploid cells in the corresponding sample |
-| `cn_clone${n}` | The copy number state of the `${n}` tumor clone in the format <code>A&#124;B</code> where `A` and `B` are the two allele-specific copy numbers of the corresponding genomic bin |
-| `u_clone${n}` | The clone proportion of the `${n}` tumor clone in the corresponding sample |
+#### Custom state trees
 
-
-2. File containing the set of all possible state trees evaluated by DeCiFer. State trees have been generated for the set of most common copy numbers, however a dataset might have a combination of copy numbers which has not been included. In this case, the user can use the command `generatestatetrees` to generate all the state trees needed for their dataset, for instance, following the instructions in the [scripts](/scripts) directory. The script in this directory not only generates input files for decifer, but also a file called `cn_states.txt` that lists all the unique CN states for your data. This file may be used with `generatestatetrees` as shown in the [scripts](/scripts) directory under the section "Adressing the \"Skipping mutation warning\"".
+Users may pass a file containing the set of all possible state trees for DeCiFer to evaluate. State trees have been pre-generated for the set of most common copy numbers, however a dataset might have a combination of copy numbers which has not been included. In this case, the user can use the command `generatestatetrees` to generate all the state trees needed for their dataset, for instance, following the instructions in the [scripts](/scripts) directory. The script in this directory not only generates input files for decifer, but also a file called `cn_states.txt` that lists all the unique CN states for your data. This file may be used with `generatestatetrees` as shown in the [scripts](/scripts) directory under the section "Adressing the \"Skipping mutation warning\"".
 
 <a name="output"></a>
 ### Output
