@@ -11,7 +11,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument("INPUT", type=str, help="Input file in DeCiFer format.")
     parser.add_argument("-p","--purityfile", type=str, required=True, help="File with purity of each sample (TSV file in two columns`SAMPLE PURITY`)")
-    parser.add_argument("--betabinomial", required=False, default=False, action='store_true', help="File with precisions for betabinomial fit (default: binomial likelihood)")
+    parser.add_argument("--betabinomial", required=False, default=False, action='store_true', help="Use betabinomial likelihood to cluster mutations (default: binomial)")
     # snpfile and segfile are conditionally required if --betabinomial specified
     parser.add_argument("-i","--snpfile", type=str, required='--betabinomial' in sys.argv, default=None, help="File with precisions for betabinomial fit (default: binomial likelihood)")
     parser.add_argument("-s","--segfile", type=str, required='--betabinomial' in sys.argv, default=None, help="File with precisions for betabinomial fit (default: binomial likelihood)")
