@@ -81,7 +81,7 @@ def write_results(prefix, C, CIs, mut_cluster_assignments, mut_config_assignment
             leftbC = [config.cf_bounds(i)[0] for i in range(len(vaf))]
             rightbC = [config.cf_bounds(i)[1] for i in range(len(vaf))]
             estC = [config.v_to_cf(vaf[sam], sam, truncate = False)/purity[sam] for sam in range(len(vaf))]
-            cmmC = [mut.compute_cmm_ccf(vaf[sam], purity, sam) for sam in range(len(vaf))]
+            cmmC = [mut.compute_cmm_ccf(vaf[sam], purity, sam)/purity[sam] for sam in range(len(vaf))]
 
             explained = []
             lhs = []

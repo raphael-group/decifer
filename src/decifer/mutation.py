@@ -40,7 +40,7 @@ class Mutation:
         # m = round(VAF * F / purity)
         m = max(1, round(vaf * F/purity[sample]))
         try:
-            c = (vaf * F) / (m * purity[sample])
+            c = (vaf * F)/m
         except ZeroDivisionError:
             print(F, vaf, purity[sample], m, vaf * F/purity[sample])
             raise
