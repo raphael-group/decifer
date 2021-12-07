@@ -87,7 +87,7 @@ class Config:
             cf = self.v_to_d(v, sample, truncate)
         else:
             cf = self.v_to_c(v, sample, truncate)
-        return min(max(cf, 0.0), 1.0)
+        return min(max(cf, 0.0), PURITY[sample])
 
     def cf_to_v(self, c, sample, truncate = True):
         # calls d_to_v or c_to_v depending on dcf_mode
@@ -118,7 +118,7 @@ class Config:
         if truncate:
             if (lam > -THRESHOLD and lam < 1 + THRESHOLD): 
                 if c < 0: return 0.0
-                if c > 1: return 1.0
+                if c > PURITY[sample]: return PURITY[sample]
                 return c
             else: return False
         else:
@@ -142,7 +142,7 @@ class Config:
         if truncate:
             if (lam > -THRESHOLD and lam < 1 + THRESHOLD): 
                 if d < 0: return 0.0
-                if d > 1: return 1.0
+                if d > PURITY[sample]: return PURITY[sample]
                 return d
             else: return False
         else:

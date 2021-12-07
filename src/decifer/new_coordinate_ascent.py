@@ -29,8 +29,8 @@ def coordinate_descent(restart, seed, mutations, num_samples, num_clusters, MAX_
     # [absent, truncal, sample specific clusters (truncal if sample index, 0 otherwise),
     # variably present clusters with random initializations]
     form = ( lambda L, sam : [0.0, purity[sam]] + [purity[sam] if s == sam else 0.0 for s in range(num_samples)]
-                            + list(map(lambda v : v / 10.0, list(L))) )
-    C = [ form(np.random.randint(low=0, high=11, size=rest) if rest > 0 else [], sam) for sam in range(num_samples) ]
+                            + list(L) )
+    C = [ form(np.random.uniform(low=0.0, high=purity[sam], size=rest) if rest > 0 else [], sam) for sam in range(num_samples) ]
     V, C_old, V_old = None, None, None
     IT = 0
     objs = []
@@ -100,12 +100,9 @@ def optimize_assignments(mutations, C, num_samples, num_clusters, bb, last=False
 
 
 def optimize_cluster_centers(mutations, num_samples, C_old, V_old, num_clusters, bb, purity):
-    # vmin and vmax find the minimum and maximum feasible VAFs, respectively
-    vmin = (lambda muti, sam: max( [max( [m.assigned_config.cf_bounds(sam)[0] for m in muti] ) - 0.05, 0.0]))
-    vmax = (lambda muti, sam: min( [min( [m.assigned_config.cf_bounds(sam)[1] for m in muti] ) + 0.05, 1.0]))
     # given a sample and mutations, minim finds minimum -log(prob) of each DCF/CCF value (ci in objective)
     # i.e. it finds cluster center
-    minim = (lambda muti, sam : minimize_scalar(objective, args=(muti, sam, bb), method='bounded', bounds=[vmin(muti,sam),vmax(muti,sam)], options={'xatol' : TOLERANCE}).x)
+    minim = (lambda muti, sam : minimize_scalar(objective, args=(muti, sam, bb), method='bounded', bounds=[0,purity[sam]], options={'xatol' : TOLERANCE}).x)
     # getmi reports the DCF/CCF value and the objective value (-log(prob)) for a particular DCF/CCF value (x), returns tuple (DCF/CCF, -log(prob))
     # minim gets passed as arg for x
     getmi = (lambda muti, sam, x : (x, objective(x, muti, sam, bb) if len(muti) > 0 else 0.0))

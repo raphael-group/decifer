@@ -218,7 +218,7 @@ def CI(job):
     mut = list(filter(lambda m : m.assigned_cluster == c, muts))
     
     num_pts = 10000
-    grid = [objective(j, mut, s, bb) for j in np.linspace(0, 1, num_pts)]
+    grid = [objective(j, mut, s, bb) for j in np.linspace(0, PURITY[s], num_pts)]
     min_log = min(grid)
     delta = (-1*min_log)-2      # constant to make -log(pdf) values less negative
     prob = (lambda x: math.exp(-1*(x+delta)))           # convert -log(pdf) to unnormalized probability

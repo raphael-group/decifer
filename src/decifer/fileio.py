@@ -57,6 +57,8 @@ def read_purity(purity_file):
     return PURITY
 
 def write_results(prefix, C, CIs, mut_cluster_assignments, mut_config_assignments, mutations, purity, bb, kind, printallk, k):
+    clust_center_scaled = (lambda sam, clust: C[sam][clust]/purity[sam])
+    clust_CI_scaled = (lambda sam, clust: (CIs[sam][clust][0]/purity[sam], CIs[sam][clust][1]/purity[sam]))
     if printallk:
         name = f"{prefix}_output_K{k}.tsv"
     else:
@@ -67,7 +69,7 @@ def write_results(prefix, C, CIs, mut_cluster_assignments, mut_config_assignment
         for mut, clust in zip(mutations, mut_cluster_assignments):
             label = mut.label
             #CF = [c[clust] for c in C]
-            CF = [ ";".join([str(C[i][clust]), str(CIs[i][clust]).replace(" ", "")]) for i in range(len(C))]
+            CF = [ ";".join([str(clust_center_scaled(sam, clust)), str(clust_CI_scaled(sam, clust)).replace(" ", "")]) for sam in range(len(C))]
             var = mut.a
             VAR = [v for v in var]
             tot = mut.d
@@ -78,8 +80,8 @@ def write_results(prefix, C, CIs, mut_cluster_assignments, mut_config_assignment
             tree = ';'.join(map(lambda p : '({},{},{})->({},{},{})'.format(*(p[0]+p[1])), zip(assigned_tree[:-1:2], assigned_tree[1::2])))
             leftbC = [config.cf_bounds(i)[0] for i in range(len(vaf))]
             rightbC = [config.cf_bounds(i)[1] for i in range(len(vaf))]
-            estC = [config.v_to_cf(vaf[i], i, truncate = False) for i in range(len(vaf))]
-            cmmC = [mut.compute_cmm_ccf(vaf[i], purity, i) for i in range(len(vaf))]
+            estC = [config.v_to_cf(vaf[sam], sam, truncate = False)/purity[sam] for sam in range(len(vaf))]
+            cmmC = [mut.compute_cmm_ccf(vaf[sam], purity, sam) for sam in range(len(vaf))]
 
             explained = []
             lhs = []
@@ -126,6 +128,7 @@ def write_results_BIC(bic, ll, num_clusters, prefix):
         out.write('\t'.join(map(str,[num_clusters, ll, bic])) + '\n')
 
 def write_results_CIs(prefix, num_samples, clus, sample_ids, CIs, printallk, k):
+    # CIs do not need to be rescaled by purity as they alrady are during CI function within __main__
     if printallk:
         name = f"{prefix}_clusterCIs_K{k}.tsv"
     else:
