@@ -15,6 +15,7 @@ from scipy.special import gammaln
 from scipy.optimize import minimize_scalar
 import time
 
+
 TOLERANCE = 1e-03
 EPSILON = -1e40
 SEQERROR = 1e-40
@@ -27,7 +28,7 @@ def coordinate_descent(restart, seed, mutations, num_samples, num_clusters, MAX_
     # initialize cluster centers C; a list of lists, where each list is the cluster centers for a sample:
     # [absent, truncal, sample specific clusters (truncal if sample index, 0 otherwise),
     # variably present clusters with random initializations]
-    form = ( lambda L, sam : [0.0, 1.0] + [purity[sam] if s == sam else 0.0 for s in range(num_samples)]
+    form = ( lambda L, sam : [0.0, purity[sam]] + [purity[sam] if s == sam else 0.0 for s in range(num_samples)]
                             + list(map(lambda v : v / 10.0, list(L))) )
     C = [ form(np.random.randint(low=0, high=11, size=rest) if rest > 0 else [], sam) for sam in range(num_samples) ]
     V, C_old, V_old = None, None, None
@@ -105,21 +106,24 @@ def optimize_cluster_centers(mutations, num_samples, C_old, V_old, num_clusters,
     # given a sample and mutations, minim finds minimum -log(prob) of each DCF/CCF value (ci in objective)
     # i.e. it finds cluster center
     minim = (lambda muti, sam : minimize_scalar(objective, args=(muti, sam, bb), method='bounded', bounds=[vmin(muti,sam),vmax(muti,sam)], options={'xatol' : TOLERANCE}).x)
-    # getmi reports the DCF/CCF value and the objective value (-log(prob)) for a particular DCF/CCF value (x)
-    # returns tuple (DCF/CCF, -log(prob))
+    # getmi reports the DCF/CCF value and the objective value (-log(prob)) for a particular DCF/CCF value (x), returns tuple (DCF/CCF, -log(prob))
+    # minim gets passed as arg for x
     getmi = (lambda muti, sam, x : (x, objective(x, muti, sam, bb) if len(muti) > 0 else 0.0))
     # caseg implements getmi, substituting random number for minim cluster center if no mutations
     caseg = (lambda muti, sam : getmi(muti, sam, minim(muti, sam) if len(muti) > 0 else np.random.rand()))
     # (i - 2) == sam is true if i is the sample-specific cluster for that sample
     cases = (lambda muti, sam, i : getmi(muti, sam, minim(muti, sam) if (i - 2) == sam and len(muti) > 0 else 0.0))
-
     # cas01 is same as getmi
     cas01 = (lambda muti, sam, x : (x, objective(x, muti, sam, bb) if len(muti) > 0 else 0.0))
-    # caseb runs cas01 if i in {0,1}, absent or truncal cluster, o.w. runs cases
-    caseb = (lambda muti, sam, i : cas01(muti, sam, 0.0 if i == 0 else 1.0) if i in {0, 1} else cases(muti, sam, i))
+    # caseb runs cas01 if i in {0,1}, absent or truncal cluster, o.w. runs cases for sample-specific cluster
+    caseb = (lambda muti, sam, i : cas01(muti, sam, 0.0 if i == 0 else purity[sam]) if i in {0, 1} else cases(muti, sam, i))
+
     # obj_i runs caseb if cluster is absent, truncal, or sample specific, o.w. runs caseg
     obj_i = (lambda muti, sam, i : caseb(muti, sam, i) if i < 2 + num_samples else caseg(muti, sam))
     selec = (lambda sam, i, R : (C_old[sam][i], V_old[sam][i]) if V_old[sam][i] < R[1] else R)
+    # R_sam goes through all clusters, and using the mutations assigned to a cluster, executes obj_i,
+    # which finds the cluster value with the minimum -log(prob), using the selec function to choose the previous cluster
+    # value if it has lower objective
     R_sam = (lambda sam : [selec(sam, i, obj_i(list(filter(lambda m : m.assigned_cluster == i, mutations)), sam, i)) for i in range(num_clusters)])
     R_new = [R_sam(sam) for sam in range(num_samples)]
     C_new, V_new = map(list, zip(*[map(list, zip(*r)) for r in R_new]))

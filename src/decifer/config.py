@@ -48,9 +48,8 @@ class Config:
     #    return sum([self.cn_props[s[:2]] * (s[2]-1) for s in self.other_states if s[2] > 0])
 
     def c(self, lam, sample):
-        c_unnorm = self.cn_props[self.mut_state][sample] * lam \
+        return self.cn_props[self.mut_state][sample] * lam \
             + sum([self.cn_props[s[:2]][sample] for s in self.other_states if s[2] >= 1])
-        return c_unnorm/PURITY[sample]
 
     def v(self, lam, sample):
             F = self.F(sample)
@@ -60,13 +59,12 @@ class Config:
 
     def d(self, lam, sample):
         # multiplies lam by SSCN CN proportion in which mutation arose, canceling out earlier division in v_to_lam
-        d_unnorm = self.cn_props[self.mut_state][sample] * lam \
+        return self.cn_props[self.mut_state][sample] * lam \
                 + sum([self.cn_props[s[:2]][sample] for s in self.other_states if s in self.desc_set])
-        return d_unnorm/PURITY[sample]
 
     def c_to_lam(self, c, sample):
             if self.cn_props[self.mut_state][sample] == 0: return 0
-            lam = (c*PURITY[sample] - sum([self.cn_props[s[:2]][sample] for s in self.other_states if s[2] >= 1]))/self.cn_props[self.mut_state][sample]
+            lam = (c - sum([self.cn_props[s[:2]][sample] for s in self.other_states if s[2] >= 1]))/self.cn_props[self.mut_state][sample]
             return lam
 
     def v_to_lam(self, v, sample):
@@ -80,7 +78,7 @@ class Config:
 
     def d_to_lam(self, d, sample):
             if self.cn_props[self.mut_state][sample] == 0: return 0
-            lam = (d*PURITY[sample] - sum([self.cn_props[s[:2]][sample] for s in self.other_states if s in self.desc_set]))/self.cn_props[self.mut_state][sample]
+            lam = (d - sum([self.cn_props[s[:2]][sample] for s in self.other_states if s in self.desc_set]))/self.cn_props[self.mut_state][sample]
             return lam
 
     def v_to_cf(self, v, sample, truncate = True):
