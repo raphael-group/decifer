@@ -31,6 +31,8 @@ def coordinate_descent(restart, seed, mutations, num_samples, num_clusters, MAX_
     form = ( lambda L, sam : [0.0, purity[sam]] + [purity[sam] if s == sam else 0.0 for s in range(num_samples)]
                             + list(L) )
     C = [ form(np.random.uniform(low=0.0, high=purity[sam], size=rest) if rest > 0 else [], sam) for sam in range(num_samples) ]
+    for sam in range(len(C)):
+        assert np.all( np.array(C[sam]) <= purity[sam] ), 'out of bounds!'
     V, C_old, V_old = None, None, None
     IT = 0
     objs = []
@@ -100,14 +102,16 @@ def optimize_assignments(mutations, C, num_samples, num_clusters, bb, last=False
 
 
 def optimize_cluster_centers(mutations, num_samples, C_old, V_old, num_clusters, bb, purity):
-    # given a sample and mutations, minim finds minimum -log(prob) of each DCF/CCF value (ci in objective)
-    # i.e. it finds cluster center
-    minim = (lambda muti, sam : minimize_scalar(objective, args=(muti, sam, bb), method='bounded', bounds=[0,purity[sam]], options={'xatol' : TOLERANCE}).x)
+    # given a sample and mutations, minim finds the DCF/CCF cluster center with minimum -log(prob) (ci in objective)
+    # min() function added to enforce respect of purity boundary
+    minim = (lambda muti, sam : min(
+        minimize_scalar(objective, args=(muti, sam, bb), method='bounded', bounds=[0,purity[sam]], options={'xatol' : TOLERANCE}).x,
+        purity[sam]))
     # getmi reports the DCF/CCF value and the objective value (-log(prob)) for a particular DCF/CCF value (x), returns tuple (DCF/CCF, -log(prob))
     # minim gets passed as arg for x
     getmi = (lambda muti, sam, x : (x, objective(x, muti, sam, bb) if len(muti) > 0 else 0.0))
     # caseg implements getmi, substituting random number for minim cluster center if no mutations
-    caseg = (lambda muti, sam : getmi(muti, sam, minim(muti, sam) if len(muti) > 0 else np.random.rand()))
+    caseg = (lambda muti, sam : getmi(muti, sam, minim(muti, sam) if len(muti) > 0 else np.random.uniform(low=0.0, high=purity[sam])))
     # (i - 2) == sam is true if i is the sample-specific cluster for that sample
     cases = (lambda muti, sam, i : getmi(muti, sam, minim(muti, sam) if (i - 2) == sam and len(muti) > 0 else 0.0))
     # cas01 is same as getmi

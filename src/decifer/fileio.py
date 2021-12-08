@@ -58,7 +58,7 @@ def read_purity(purity_file):
 
 def write_results(prefix, C, CIs, mut_cluster_assignments, mut_config_assignments, mutations, purity, bb, kind, printallk, k):
     clust_center_scaled = (lambda sam, clust: C[sam][clust]/purity[sam])
-    clust_CI_scaled = (lambda sam, clust: (CIs[sam][clust][0]/purity[sam], CIs[sam][clust][1]/purity[sam]))
+    # CIs do not need to be rescaled by purity as they alrady are during CI function within __main__
     if printallk:
         name = f"{prefix}_output_K{k}.tsv"
     else:
@@ -69,7 +69,7 @@ def write_results(prefix, C, CIs, mut_cluster_assignments, mut_config_assignment
         for mut, clust in zip(mutations, mut_cluster_assignments):
             label = mut.label
             #CF = [c[clust] for c in C]
-            CF = [ ";".join([str(clust_center_scaled(sam, clust)), str(clust_CI_scaled(sam, clust)).replace(" ", "")]) for sam in range(len(C))]
+            CF = [ ";".join([str(clust_center_scaled(sam, clust)), str(CIs[sam][clust]).replace(" ", "")]) for sam in range(len(C))]
             var = mut.a
             VAR = [v for v in var]
             tot = mut.d
