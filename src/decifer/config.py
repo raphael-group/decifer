@@ -48,9 +48,8 @@ class Config:
     #    return sum([self.cn_props[s[:2]] * (s[2]-1) for s in self.other_states if s[2] > 0])
 
     def c(self, lam, sample):
-        c_unnorm = self.cn_props[self.mut_state][sample] * lam \
+        return self.cn_props[self.mut_state][sample] * lam \
             + sum([self.cn_props[s[:2]][sample] for s in self.other_states if s[2] >= 1])
-        return c_unnorm/PURITY[sample]
 
     def v(self, lam, sample):
             F = self.F(sample)
@@ -60,13 +59,12 @@ class Config:
 
     def d(self, lam, sample):
         # multiplies lam by SSCN CN proportion in which mutation arose, canceling out earlier division in v_to_lam
-        d_unnorm = self.cn_props[self.mut_state][sample] * lam \
+        return self.cn_props[self.mut_state][sample] * lam \
                 + sum([self.cn_props[s[:2]][sample] for s in self.other_states if s in self.desc_set])
-        return d_unnorm/PURITY[sample]
 
     def c_to_lam(self, c, sample):
             if self.cn_props[self.mut_state][sample] == 0: return 0
-            lam = (c*PURITY[sample] - sum([self.cn_props[s[:2]][sample] for s in self.other_states if s[2] >= 1]))/self.cn_props[self.mut_state][sample]
+            lam = (c - sum([self.cn_props[s[:2]][sample] for s in self.other_states if s[2] >= 1]))/self.cn_props[self.mut_state][sample]
             return lam
 
     def v_to_lam(self, v, sample):
@@ -80,7 +78,7 @@ class Config:
 
     def d_to_lam(self, d, sample):
             if self.cn_props[self.mut_state][sample] == 0: return 0
-            lam = (d*PURITY[sample] - sum([self.cn_props[s[:2]][sample] for s in self.other_states if s in self.desc_set]))/self.cn_props[self.mut_state][sample]
+            lam = (d - sum([self.cn_props[s[:2]][sample] for s in self.other_states if s in self.desc_set]))/self.cn_props[self.mut_state][sample]
             return lam
 
     def v_to_cf(self, v, sample, truncate = True):
@@ -89,7 +87,7 @@ class Config:
             cf = self.v_to_d(v, sample, truncate)
         else:
             cf = self.v_to_c(v, sample, truncate)
-        return min(max(cf, 0.0), 1.0)
+        return min(max(cf, 0.0), PURITY[sample])
 
     def cf_to_v(self, c, sample, truncate = True):
         # calls d_to_v or c_to_v depending on dcf_mode
@@ -120,7 +118,7 @@ class Config:
         if truncate:
             if (lam > -THRESHOLD and lam < 1 + THRESHOLD): 
                 if c < 0: return 0.0
-                if c > 1: return 1.0
+                if c > PURITY[sample]: return PURITY[sample]
                 return c
             else: return False
         else:
@@ -144,7 +142,7 @@ class Config:
         if truncate:
             if (lam > -THRESHOLD and lam < 1 + THRESHOLD): 
                 if d < 0: return 0.0
-                if d > 1: return 1.0
+                if d > PURITY[sample]: return PURITY[sample]
                 return d
             else: return False
         else:

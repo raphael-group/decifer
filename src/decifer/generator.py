@@ -29,14 +29,14 @@ import seaborn as sns
 from collections import defaultdict
 
 from decifer.fileio import *
-from decifer.__main__ import ProgressBar
+from decifer.progress_bar import ProgressBar
 
 
 SEQERROR = 1e-03
 
 
-def main():
-    args = parse_args()
+def fit_betabinom(args):
+    #args = parse_args()
     sys.stderr.write('> Reading true BAF from SEG file of copy numbers and proportions\n')
     baf, bsamples = read_baf(args['segfile'], args['threshold'])
     sys.stderr.write('> Reading SNPs\n')
@@ -48,14 +48,18 @@ def main():
     sys.stderr.write('The number of retained SNPs is {} over a total of {} SNPs ({:.2%})\n'.format(sel, tot, sel / float(tot)))
     sys.stderr.write('> Fitting Beta-Binomial\n')
     betabinom = fit(baf, overlap, samples, args['restarts'], args['skip'], args['J'])
-    print('#SAMPLE\tPRECISION\tNLH')
-    for sam in sorted(betabinom):
-        print('\t'.join(map(str, [sam, betabinom[sam][0], betabinom[sam][1]])))
+    """
+    with open(f"{args['output']}_betabinom.tsv", 'w') as out:
+        out.write('#SAMPLE\tPRECISION\tNLH\n')
+        for sam in sorted(betabinom):
+            out.write('\t'.join(map(str, [sam, betabinom[sam][0], betabinom[sam][1], "\n"])))
+    """
     sys.stderr.write('> Plotting binomial fit\n')
     set_style()
     plot_binomial(overlap, baf, snps, samples)
     sys.stderr.write('> Plotting beta-binomial fit\n')
     plot_betabinomial(overlap, baf, snps, samples, betabinom)
+    return betabinom
     
 
 def parse_args():
@@ -183,8 +187,9 @@ def plot_binomial(overlap, baf, snps, samples):
     for x, sam in enumerate(sorted(samples)):
         obsbaf = (lambda c, o : float(snps[c][o][sam][rand.randint(0, 1)]) / float(sum(snps[c][o][sam])))
         form = (lambda c, s, o : {'CN' : baf[c][s][sam], 'Observed BAF' : obsbaf(c, o)})
-        df = [form(c, s, o) for c in overlap for s in overlap[c] for o in overlap[c][s] if sam in overlap[c][s][o] and sam in baf[c][s]]
-        g = distplot_fig(data=pd.DataFrame(df), x='Observed BAF', hue='CN', ax=axes[x])
+        df = [form(c, s, o) for c in overlap for s in overlap[c] for o in overlap[c][s] if sam in overlap[c][s][o] and sam in baf[c][s] and sum(snps[c][o][sam]) > 0]
+        #g = distplot_fig(data=pd.DataFrame(df), x='Observed BAF', hue='CN', ax=axes[x])
+        g = distplot_fig(data=pd.DataFrame(df), x='Observed BAF', hue='CN')
     plt.savefig('test.png', dpi=600, bbox_inches='tight')
         
 

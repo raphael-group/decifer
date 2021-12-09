@@ -11,7 +11,14 @@ def parse_args():
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument("INPUT", type=str, help="Input file in DeCiFer format.")
     parser.add_argument("-p","--purityfile", type=str, required=True, help="File with purity of each sample (TSV file in two columns`SAMPLE PURITY`)")
-    parser.add_argument("-b","--betabinomial", type=str, required=False, default=None, help="File with precisions for betabinomial fit (default: binomial likelihood)")
+    parser.add_argument("--betabinomial", required=False, default=False, action='store_true', help="Use betabinomial likelihood to cluster mutations (default: binomial)")
+    # snpfile and segfile are conditionally required if --betabinomial specified
+    parser.add_argument("-i","--snpfile", type=str, required='--betabinomial' in sys.argv, default=None, help="File with precisions for betabinomial fit (default: binomial likelihood)")
+    parser.add_argument("-s","--segfile", type=str, required='--betabinomial' in sys.argv, default=None, help="File with precisions for betabinomial fit (default: binomial likelihood)")
+    parser.add_argument("-v", "--sensitivity", type=float, required=False, default=0.1, help="Sensitivity E to exclude SNPs with 0.5 - E <= BAF < 0.5, for estimating betabinomial parameters (default: 0.1)")
+    parser.add_argument("-R","--restarts_bb", type=int, required=False, default=10000, help="Maximum size of brute-force search, when fitting betabinomial parameters (default: 1e4)")
+    parser.add_argument("-x","--skip", type=int, required=False, default=10, help="Numbers to skip in the brute-force search, when fitting betabinomial parameters (default: 10)")
+
     parser.add_argument("--ccf", required=False, default=False, action='store_true', help="Run with CCF instead of DCF (default: False)")
     parser.add_argument("-k","--mink", type=int, required=False, default=2, help="Minimum number of clusters, which must be at least 2 (default: 2)")
     parser.add_argument("-K","--maxk", type=int, required=False, default=12, help="Maximum number of clusters (default: 12)")
@@ -40,11 +47,13 @@ def parse_args():
     if not os.path.isfile(statetrees):
         raise ValueError("State tree file does not exist:\n{}".format(statetrees))
     
+    """
     if args.betabinomial is not None:
         with open(args.betabinomial, 'r') as i:
             betabinomial = {int(l.split()[0]) : float(l.split()[1]) for l in i if '#' not in l}
     else:
         betabinomial = None
+    """
 
     if args.seed:
         rand.seed(args.seed)
@@ -63,7 +72,14 @@ def parse_args():
         "J" : args.jobs,
         "output" : args.output,
         "ccf" : args.ccf,
-        "betabinomial" : betabinomial,
+
+        "betabinomial" : args.betabinomial,
+        "snpfile" : args.snpfile,
+        "segfile" : args.segfile,
+        "restarts_bb" : args.restarts_bb,
+        "threshold": args.sensitivity,
+        "skip": args.skip,
+
         "statetrees" : statetrees,
         "debug" : args.debug,
         "printallk" : args.printallk

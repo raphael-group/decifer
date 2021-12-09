@@ -25,6 +25,9 @@ from decifer.fileio import write_results, write_results_CIs, read_in_state_trees
 from decifer.new_coordinate_ascent import coordinate_descent, objective
 from decifer.mutation import create_mutations
 from decifer.process_input import PURITY, MUTATION_DF
+from decifer.progress_bar import ProgressBar
+from decifer.generator import fit_betabinom
+
 
 def main():
     sys.stderr.write('\n'.join(['Arguments:'] + ['\t{} : {}'.format(a, args[a]) for a in args]) + '\n')
@@ -51,34 +54,44 @@ def main():
     # infer purity from SNV data, but overwrite purity dict if purity file provided (next line)
     mutations = create_mutations(MUTATION_DF, state_trees, not args['ccf'])
 
+    if args['betabinomial']:
+        betabinom_out = fit_betabinom(args)
+        # invert sample_ids to get index for each sample name, according to input file
+        get_index = {v : k for k,v in sample_ids.items()}
+        betabinomial = {get_index[sam] : betabinom_out[sam][0] for sam in betabinom_out.keys()}
+
     if args['record']:
         manager = mp.Manager()
         record = manager.list()
     if not args['iterative']:
         print("Using binary-search model selection")
-        run_coordinator_binary(mutations, num_samples, PURITY, args, record if args['record'] else None)
+        run_coordinator_binary(mutations, num_samples, PURITY, args,
+                               record if args['record'] else None,
+                               betabinomial if args['betabinomial'] else None)
     else:
         print("Using iterative model selection")
-        run_coordinator_iterative(mutations, sample_ids, num_samples, PURITY, args, record if args['record'] else None)
+        run_coordinator_iterative(mutations, sample_ids, num_samples, PURITY, args,
+                                  record if args['record'] else None,
+                                  betabinomial if args['betabinomial'] else None)
     if args['record']:
         with open('record.log.tsv', 'w') as o:
             o.write('#NUM_CLUSTERS\tRESTART\tSEED\tITERATION\tOBJECTIVE\n')
             for r in record:
                 o.write('{}\t{}\t{}\t{}\t{}\n'.format(r[0], r[1], r[2], r[3], r[4]))
 
-def run_coordinator_iterative(mutations, sample_ids, num_samples, PURITY, args, record):
+def run_coordinator_iterative(mutations, sample_ids, num_samples, PURITY, args, record, betabinomial):
     mink, maxk, maxit, prefix, restarts, ubleft, J = unpck(args)
     jobs = [(x, k, np.random.randint(low=0, high=2**10)) for x in range(restarts) for k in range(mink, maxk+1)]
     # run in single-thread mode for development/debugging
     if args['debug']:
         shared = defaultdict(dict)
         # make objects global
-        init_descent(mutations, num_samples, maxit, shared, record, args['betabinomial'], PURITY)
+        init_descent(mutations, num_samples, maxit, shared, record, betabinomial, PURITY)
         for job in jobs:
             run_descent(job)
     else:
         manager, shared = setup_shared()
-        initargs = (mutations, num_samples, maxit, shared, record, args['betabinomial'], PURITY)
+        initargs = (mutations, num_samples, maxit, shared, record, betabinomial, PURITY)
         pool = Pool(processes=min(J, len(jobs)), initializer=init_descent, initargs=initargs)
         bar = ProgressBar(total=len(jobs), length=30, verbose=False, lock=Lock(), counter=Value('i', 0))
         bar.progress(advance=False, msg="Started")
@@ -103,7 +116,7 @@ def run_coordinator_iterative(mutations, sample_ids, num_samples, PURITY, args, 
     else:
         selected = mink
 
-    write_model_selection_results( k, mink, maxk, objs, elbow, selected, prefix )
+    write_model_selection_results( mink, maxk, objs, elbow, selected, prefix )
 
     if args['printallk']:
         k_to_print = [ k for k in range(mink, maxk+1) ]
@@ -113,10 +126,10 @@ def run_coordinator_iterative(mutations, sample_ids, num_samples, PURITY, args, 
         C, bmut, clus, conf, objs = map(lambda D : shared[D][best[k]], ['C', 'bmut', 'clus', 'conf', 'objs'])
         # C is list of lists; rows are samples, columns are cluster IDs, values are CCFs
         #CIs = [[()]*len(C[i]) for i in range(len(C))] # list of lists to store CIs, same structure as C
-        CIs, PDFs = compute_CIs_mp(set(clus), bmut, num_samples, args['betabinomial'], J, C)
+        CIs, PDFs = compute_CIs_mp(set(clus), bmut, num_samples, betabinomial, J, C)
 
         write_results_CIs(prefix, num_samples, clus, sample_ids, CIs, args['printallk'], k)
-        write_results(prefix, C, CIs, clus, conf, bmut, PURITY, args['betabinomial'], 'CCF' if args['ccf'] else 'DCF', args['printallk'], k)
+        write_results(prefix, C, CIs, clus, conf, bmut, PURITY, betabinomial, 'CCF' if args['ccf'] else 'DCF', args['printallk'], k)
         #write_results_decifer_format(bmut, clus, prefix, selected, num_samples, C)
 
     """
@@ -205,7 +218,7 @@ def CI(job):
     mut = list(filter(lambda m : m.assigned_cluster == c, muts))
     
     num_pts = 10000
-    grid = [objective(j, mut, s, bb) for j in np.linspace(0, 1, num_pts)]
+    grid = [objective(j, mut, s, bb) for j in np.linspace(0, PURITY[s], num_pts)]
     min_log = min(grid)
     delta = (-1*min_log)-2      # constant to make -log(pdf) values less negative
     prob = (lambda x: math.exp(-1*(x+delta)))           # convert -log(pdf) to unnormalized probability
@@ -241,13 +254,13 @@ def take_closest(myList, myNumber):
     else:
         return pos-1
 
-def run_coordinator_binary(mutations, num_samples, PURITY, args, record):
+def run_coordinator_binary(mutations, num_samples, PURITY, args, record, betabinomial):
     L, R, maxit, prefix, restarts, ubleft, J = unpck(args)
     results = {}
     def evaluate(V):
         if V not in results:
             sys.stderr.write('[{:%Y-%b-%d %H:%M:%S}]'.format(datetime.datetime.now()) + 'Computing for {} clusters...\n'.format(V))
-            results[V] = run(mutations, num_samples, V, maxit, prefix, PURITY, restarts, ubleft, J, record, args['betabinomial'])
+            results[V] = run(mutations, num_samples, V, maxit, prefix, PURITY, restarts, ubleft, J, record, betabinomial)
         sys.stderr.write('[{:%Y-%b-%d %H:%M:%S}]'.format(datetime.datetime.now()) + 'Objective for {} clusters: {}\n'.format(V, results[V][-1]))
         return
 
@@ -268,7 +281,7 @@ def run_coordinator_binary(mutations, num_samples, PURITY, args, record):
     evaluate(R)
     selected = L if float(results[L][-1] - results[MAXR][-1]) / abs(results[MAXR][-1]) <= ubleft else R
     C, bmut, clus, conf, objs = results[selected]
-    write_results(prefix, C, clus, conf, bmut, PURITY, args['betabinomial'], 'CCF' if args['ccf'] else 'DCF')
+    write_results(prefix, C, clus, conf, bmut, PURITY, betabinomial, 'CCF' if args['ccf'] else 'DCF')
     #write_results_decifer_format(bmut, clus, prefix, selected, num_samples, C)
 
 
@@ -333,48 +346,7 @@ def unpck(args):
     return args['mink'], args['maxk'], args['maxit'], args['output'], args['restarts'], args['elbow'], args['J']
 
 
-class ProgressBar:
 
-    def __init__(self, total, length, lock, counter, verbose=False, decimals=1, fill=chr(9608), prefix = 'Progress:', suffix = 'Complete'):
-        self.total = total
-        self.length = length
-        self.decimals = decimals
-        self.fill = fill
-        self.prefix = prefix
-        self.suffix = suffix
-        self.lock = lock
-        self.counter = counter
-        assert lock is not None or counter == 0
-        self.verbose = verbose
-
-    def progress(self, advance=True, msg=""):
-        flush = sys.stderr.flush
-        write = sys.stderr.write
-        if advance:
-            with self.counter.get_lock():
-                self.counter.value += 1
-        percent = ("{0:." + str(self.decimals) + "f}").format(100 * (self.counter.value / float(self.total)))
-        filledLength = int(self.length * self.counter.value // self.total)
-        bar = self.fill * filledLength + '-' * (self.length - filledLength)
-        rewind = '\x1b[2K\r'
-        result = '%s |%s| %s%% %s' % (self.prefix, bar, percent, self.suffix)
-        msg = '[{:%Y-%b-%d %H:%M:%S}]'.format(datetime.datetime.now()) + msg
-        if not self.verbose:
-            toprint = rewind + result + " [%s]" % (msg)
-        else:
-            toprint = rewind + msg + "\n" + result
-        with self.lock:
-            #print("#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#")
-            #print(toprint.encode('utf-8'))
-            #print(write(toprint))
-            #print("#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#")
-            #write(toprint.encode('utf-8'))
-            x = write(toprint)
-            flush()
-            if self.counter.value == self.total:
-                write("\n")
-                flush()
-        return True
 
 
 if __name__ == "__main__":

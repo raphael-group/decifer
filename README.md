@@ -142,9 +142,26 @@ For generating the input files for DeCiFer, please see the [scripts](/scripts) d
 
 DeCiFer can use the following additional and optional input data:
 
-1. Precision parameters for fitting beta-binomial distributions when clustering mutations. Specifically, this is a two-column tab-separated file where every row `SAMPLE-INDEX   PRECISION` defines the precision parameter `PRECISION` of the beta binomial distribution of a sample with index `SAMPLE-INDEX`. When this optional file is not provided, DeCiFer will fit a binomial distribution instead. This file can be estimated by using the command `decifer_fit`, whose usage is described in the corresponding [manual](man/man-decifer-fit.md).
+#### 1. Data for fitting beta-binomial distributions to read count data
 
-2. File containing the set of all possible state trees evaluated by DeCiFer. State trees have been generated for the set of most common copy numbers, however a dataset might have a combination of copy numbers which has not been included. In this case, the user can use the command `generatestatetrees` to generate all the state trees needed for their dataset, for instance, following the instructions in the [scripts](/scripts) directory. The script in this directory not only generates input files for decifer, but also a file called `cn_states.txt` that lists all the unique CN states for your data. This file may be used with `generatestatetrees` as shown in the [scripts](/scripts) directory under the section "Adressing the \"Skipping mutation warning\"".
+To use beta-binomial distributions to cluster mutations (default is binomial), pass the `--betabinomial` flag to `decifer` along with 2 additional arguments, `--snpfile` and `--segfile`, which are used to specify the locations of 2 files that contain information to parameterize the beta-binomial for each sample. 
+
+The file passed to DeCiFer via `--snpfile` contains information about the read counts of *germline* (not somatic) variants and has the following format:
+
+| Field | Description |
+|-------|-------------|
+| `SAMPLE` | Name of a sample |
+| `CHR` | Name of the chromosome |
+| `POS` | Genomic position in `CHR` |
+| `REF_COUNT` | Number of reads harboring reference allele in `POS` |
+| `ALT_COUNT` | Number of reads harboring alternate allele in `POS` |
+
+
+The file passed to DeCiFer via `--segfile`, which specifies the allele-specific copy number per segment, is the same as the `best.seg.ucn` file used by the [vcf_2_decifer.py](/scripts) python script that generates the input files for DeCiFer. Please simply specify the location of this file.
+
+#### Custom state trees
+
+Users may pass a file containing the set of all possible state trees for DeCiFer to evaluate. State trees have been pre-generated for the set of most common copy numbers, however a dataset might have a combination of copy numbers which has not been included. In this case, the user can use the command `generatestatetrees` to generate all the state trees needed for their dataset, for instance, following the instructions in the [scripts](/scripts) directory. The script in this directory not only generates input files for decifer, but also a file called `cn_states.txt` that lists all the unique CN states for your data. This file may be used with `generatestatetrees` as shown in the [scripts](/scripts) directory under the section "Adressing the \"Skipping mutation warning\"".
 
 <a name="output"></a>
 ### Output
@@ -192,7 +209,8 @@ Each demo is an exemplary and guided execution of a DeCiFer.Each demo is simulta
 - We recommend to initially select a reasonably high maximum number of clusters with option `-K`, e.g. a number that is ~2-3 times as large as `(number of samples for the patient)+2`. Further increase `-K` if the selected best number of clusters is close to the maximum limit.
 - DeCiFer outputs the decreasing objective function which is used to select the number of clusters based on the Elbow criterion; if the function is still substantially decreasing near the selected maximum number of clusters please try to further increase this value.
 - You can adapt the sensitivity of the Elbow criterion by adjusting the corresponding `--elbow` parameter. In our experience, decreasing this value to ~0.002 gives better results for whole-genome sequences collected from ~5 samples from the same tumor; elbow values higher than this can result in overclustering with clusters containing visually distinct groups of DCF/CCF values.
-- Although DeCiFer performs model selection to select the best number of K clusters, given the specified range of clusters from `--mink` to `--maxk` and the `--elbow` parameter, you can use the `--printallk` to print the output for all values of K specified. One output file is printed per value of K, each ending in `_K#.tsv` where `#` is the number of clusters.
+- Although DeCiFer performs model selection to select the best number of K clusters, given the specified range of clusters from `--mink` to `--maxk` and the `--elbow` parameter, you can use the `--printallk` to print the output for all values of K specified. One output file is printed per value of K, each ending in `_K#.tsv` where `#` is the number of clusters. This can be useful to quickly explore how results may vary with different sensitivities, compared to re-running DeCiFer with different `--elbow` values.
+- If DeCiFer is taking more than a few days to run -- from having many SNVs, many samples, or both -- using fewer restarts (e.g. `--restarts 20`) *may* be a sensible solution. We have observed very similar results for some datasets using the default value of 100 and a lower value of 10.
 
 <a name="development"></a>
 ## Development
