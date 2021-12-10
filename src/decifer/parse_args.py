@@ -2,7 +2,10 @@ import sys
 import os
 import argparse
 import multiprocessing as mp
-from pkg_resources import resource_filename
+import importlib.resources
+from contextlib import ExitStack
+import atexit
+
 import random as rand
 import numpy as np
 
@@ -22,7 +25,7 @@ def parse_args():
     parser.add_argument("--ccf", required=False, default=False, action='store_true', help="Run with CCF instead of DCF (default: False)")
     parser.add_argument("-k","--mink", type=int, required=False, default=2, help="Minimum number of clusters, which must be at least 2 (default: 2)")
     parser.add_argument("-K","--maxk", type=int, required=False, default=12, help="Maximum number of clusters (default: 12)")
-    parser.add_argument("-r","--restarts", type=int, required=False, default=100, help="Number of restarts (default: 100)")
+    parser.add_argument("-r","--restarts", type=int, required=False, default=20, help="Number of restarts (default: 20)")
     parser.add_argument("-t","--maxit", type=int, required=False, default=200, help="Maximum number of iterations per restart (default: 200)")
     parser.add_argument("-e","--elbow", type=float, required=False, default=0.06, help="Elbow sensitivity, lower values increase sensitivity (default: 0.06)")
     parser.add_argument("--binarysearch", required=False, default=False, action='store_true', help='Use binary-search model selection (default: False, iterative is used; use binary search when considering large numbers of clusters')
@@ -43,7 +46,12 @@ def parse_args():
     if args.statetrees is not None:
         statetrees = args.statetrees
     else:
-        statetrees = resource_filename(__name__, 'state_trees.txt')
+        file_manager = ExitStack()
+        atexit.register(file_manager.close)
+        ref = importlib.resources.files('decifer') / 'state_trees.txt'
+        statetrees = file_manager.enter_context(
+            importlib.resources.as_file(ref))
+
     if not os.path.isfile(statetrees):
         raise ValueError("State tree file does not exist:\n{}".format(statetrees))
     
