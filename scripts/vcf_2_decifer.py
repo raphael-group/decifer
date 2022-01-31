@@ -113,11 +113,10 @@ def print_filtered_sites(filtered_sites, cna_overlaps, outdir):
         print("filtered: ", filtered, file=out)
         print("fraction: ", float(filtered/total), file=out)
 
-def overlap_cna_snp(vcf_samples, max_CN, out_dir):
+def overlap_cna_snp(vcf_samples, max_CN, snps, out_dir):
     cna_overlaps = defaultdict(list)
     cn_states_allsites = [] # a list of tuples
     filtered_sites = set()  # sites filtered out because of high CN
-    snps = pbt.BedTool(f"{out_dir}/snps.bed")
     # for each sample in VCF, intersect it's SNVs with sample-specific CNAs
     for sample in vcf_samples:
         sample_cnas = pbt.BedTool(f"{out_dir}/{sample}_cna.bed")    
@@ -162,6 +161,7 @@ def main():
     parser.add_argument("-A","--min_alt_depth", required=True, type=int, help="minimum depth of ALT allele in at least one sample")
     parser.add_argument("-F","--min_vaf", required=True, type=float, help="minimum VAF of ALT allele in at least one sample")
     parser.add_argument("-N","--max_CN", required=False, default=6, type=int, help="maximum total copy number for each observed clone")
+    parser.add_argument("-B","--blacklist", required=False, default=None, type=str, help="BED file of genomic regions to exclude")
     args = parser.parse_args()
 
     vcf_name = os.path.basename(args.vcf_file)
@@ -184,10 +184,16 @@ def main():
     # print BED file for SNPs
     with open(f"{args.out_dir}/snps.bed", 'w') as out:
         print("chrom\tstart\tend\tREF\tALT", file=out)
-        for chr_label in ref_var_depths:
+        # sort ref_var_depths by the first two parts of chr_label
+        for chr_label in sorted(ref_var_depths, key = lambda x: (x.split('.')[0], int(x.split('.')[1]))):
             pos = chr_label.split(".")
             # subtract 1 from position to create interval in BED format
             print(pos[0], int(pos[1])-1, int(pos[1]), pos[2], pos[3],  sep="\t", file=out)
+
+    snps = pbt.BedTool(f"{args.out_dir}/snps.bed")
+    if args.blacklist:
+        blist = pbt.BedTool(f"{args.blacklist}")
+        snps = snps.subtract(blist)
 
     # Load in CNA information
     cna_df = pd.read_csv(args.cna_file, sep = '\t', index_col=False)
@@ -205,7 +211,7 @@ def main():
     # overlap SNPs with CNA intervals for each sample
     # cna_overlaps[char_label] = list of tuples of CNA info (one tuple for each sample, in same order as vcf.samples)
     # this function also prints the observed CN state trees for the generatestatetrees function
-    cna_overlaps, cn_states_allsites, filtered_sites = overlap_cna_snp(vcf.samples, args.max_CN, args.out_dir)
+    cna_overlaps, cn_states_allsites, filtered_sites = overlap_cna_snp(vcf.samples, args.max_CN, snps, args.out_dir)
     
     # sites may have unique CN states that are duplicate; set them to find unique CN states across sites
     print_unique_CN_states(cn_states_allsites, args.max_CN, args.out_dir)
