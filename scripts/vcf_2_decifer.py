@@ -161,7 +161,7 @@ def main():
     parser.add_argument("-A","--min_alt_depth", required=True, type=int, help="minimum depth of ALT allele in at least one sample")
     parser.add_argument("-F","--min_vaf", required=True, type=float, help="minimum VAF of ALT allele in at least one sample")
     parser.add_argument("-N","--max_CN", required=False, default=6, type=int, help="maximum total copy number for each observed clone")
-    parser.add_argument("-B","--blacklist", required=False, default=None, type=str, help="BED file of genomic regions to exclude")
+    parser.add_argument("-B","--exclude_list", required=False, default=None, type=str, help="BED file of genomic regions to exclude")
     args = parser.parse_args()
 
     vcf_name = os.path.basename(args.vcf_file)
@@ -191,8 +191,8 @@ def main():
             print(pos[0], int(pos[1])-1, int(pos[1]), pos[2], pos[3],  sep="\t", file=out)
 
     snps = pbt.BedTool(f"{args.out_dir}/snps.bed")
-    if args.blacklist:
-        blist = pbt.BedTool(f"{args.blacklist}")
+    if args.exclude_list:
+        blist = pbt.BedTool(f"{args.exclude_list}")
         snps = snps.subtract(blist)
 
     # Load in CNA information
