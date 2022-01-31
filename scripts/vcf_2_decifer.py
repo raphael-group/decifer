@@ -24,27 +24,24 @@ from collections import defaultdict
 import argparse
 
 
-def filterByDepth(gt_depths, gt_alt_depths, Filter):
+def filterByDepthAndVaf(gt_depths, gt_alt_depths, Filter):
     PASS = 1
-    missing = 0
-    for i in range(len(gt_depths)):
-        # filter if genotype has low depth or is missing
-        if (gt_depths[i] < Filter['MinDepth']): 
-            missing += 1
-        # filter if alt allele isn't greater than the specified threshold in at least one sample
-        if not any( np.greater_equal(gt_alt_depths, Filter['MinDepthAltAllele']) ):
-            missing += 1
-    #(gt_alt_depths[i] < Filter['MinDepthAltAllele'])
-    if missing > 0: 
+    if any( np.less(gt_depths, Filter['MinDepth']) ):
+        PASS = 0
+    # filter if alt allele isn't greater than the specified threshold in at least one sample
+    if not any( np.greater_equal(gt_alt_depths, Filter['MinDepthAltAllele']) ):
+        PASS = 0
+    # filter if VAF  isn't greater than the specified threshold in at least one sample
+    if not any( np.greater_equal((gt_alt_depths/gt_depths), Filter['MinVAF']) ):
         PASS = 0
     return(PASS)
 
-def compute_ref_var_depths(vcf, FilterDP):
+def compute_ref_var_depths(vcf, Filter):
     ref_var_depths = defaultdict(list) # ref_var_depths[char_label] = list of (ref,alt) tuples, one for each sample, in same order as vcf.samples
     for variant in vcf:
         if len(variant.ALT) == 1 and variant.var_type == "snp":
-            PASS = filterByDepth(variant.gt_depths, variant.gt_alt_depths, FilterDP)
-            #print(np.greater_equal(variant.gt_alt_depths,FilterDP['MinDepthAltAllele']))
+            PASS = filterByDepthAndVaf(np.asarray(variant.gt_depths), np.asarray(variant.gt_alt_depths), Filter)
+            #print(np.greater_equal(variant.gt_alt_depths,Filter['MinDepthAltAllele']))
             if PASS:
                 chrom = variant.CHROM
                 pos = variant.end
@@ -163,6 +160,7 @@ def main():
     parser.add_argument("-O","--out_dir", required=True, default="./", type=str, help="directory for printing files; please make unique for each patient!")
     parser.add_argument("-M","--min_depth", required=True, type=int, help="minimum depth PER sample")
     parser.add_argument("-A","--min_alt_depth", required=True, type=int, help="minimum depth of ALT allele in at least one sample")
+    parser.add_argument("-F","--min_vaf", required=True, type=float, help="minimum VAF of ALT allele in at least one sample")
     parser.add_argument("-N","--max_CN", required=False, default=6, type=int, help="maximum total copy number for each observed clone")
     args = parser.parse_args()
 
@@ -170,9 +168,10 @@ def main():
     vcf = VCF(args.vcf_file, gts012=True)
     
     # Filtering criteria
-    FilterDP = {}
-    FilterDP['MinDepth'] = args.min_depth
-    FilterDP['MinDepthAltAllele'] = args.min_alt_depth
+    Filter = {}
+    Filter['MinDepth'] = args.min_depth
+    Filter['MinDepthAltAllele'] = args.min_alt_depth
+    Filter['MinVAF'] = args.min_vaf
     
     num_samples = len(vcf.samples)
     sample_index = { vcf.samples[i] : i for i in range(len(vcf.samples)) }
@@ -180,7 +179,7 @@ def main():
     print(type(vcf.samples))
 
     # ref_var_depths[char_label] = list of (ref,alt) tuples, one for each sample, in same order as vcf.samples
-    ref_var_depths = compute_ref_var_depths(vcf, FilterDP)
+    ref_var_depths = compute_ref_var_depths(vcf, Filter)
 
     # print BED file for SNPs
     with open(f"{args.out_dir}/snps.bed", 'w') as out:
