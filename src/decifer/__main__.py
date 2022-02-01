@@ -126,7 +126,7 @@ def run_coordinator_iterative(mutations, sample_ids, num_samples, PURITY, args, 
         C, bmut, clus, conf, objs = map(lambda D : shared[D][best[k]], ['C', 'bmut', 'clus', 'conf', 'objs'])
         # C is list of lists; rows are samples, columns are cluster IDs, values are CCFs
         #CIs = [[()]*len(C[i]) for i in range(len(C))] # list of lists to store CIs, same structure as C
-        CIs, PDFs = compute_CIs_mp(set(clus), bmut, num_samples, betabinomial, J, C)
+        CIs, PDFs = compute_CIs_mp(set(clus), bmut, num_samples, betabinomial, J, C, args['debug'], args['conservativeCIs'])
 
         write_results_CIs(prefix, num_samples, clus, sample_ids, CIs, args['printallk'], k)
         write_results(prefix, C, CIs, clus, conf, bmut, PURITY, betabinomial, 'CCF' if args['ccf'] else 'DCF', args['printallk'], k)
@@ -181,20 +181,30 @@ def print_PDF(cluster_ids, muts, num_samples, bb, C):
                 f.write("\n")
 
 
-def compute_CIs_mp(cluster_ids, muts, num_samples, bb, J, C):
+def compute_CIs_mp(cluster_ids, muts, num_samples, bb, J, C, debug, conservativeCIs):
     CIs = [[()]*len(C[i]) for i in range(len(C))] # list of lists to store CIs, same structure as C
     PDFs = [[()]*len(C[i]) for i in range(len(C))] # list of lists to store CIs, same structure as C
     num_tests = float(len(cluster_ids)*num_samples) # bonferroni correction for multiple hypothesis testing
     #C[s][i] is the putative mode of the pdf
-    jobs = [(c, s, muts, num_tests, bb) for c in cluster_ids for s in range(num_samples)]
-    pool = Pool(processes=min(J, len(jobs)))
-    results = pool.imap_unordered(CI, jobs)
-    pool.close()
-    pool.join()
-    for i in results:
-        clust, samp, lower, upper, pdf = i[0], i[1], i[2], i[3], i[4]
-        CIs[samp][clust] = (lower,upper)
-        PDFs[samp][clust] = pdf
+
+    CI_fun = CI_conservative if conservativeCIs == True else CI
+    if debug:
+        # single-thread mode for debugging
+        for c in cluster_ids:
+            for s in range(num_samples):
+                clust, samp, lower, upper, pdf = CI_fun( (c, s, muts, num_tests, bb) )
+                CIs[samp][clust] = (lower, upper)
+                PDFs[samp][clust] = pdf
+    else:
+        jobs = [(c, s, muts, num_tests, bb) for c in cluster_ids for s in range(num_samples)]
+        pool = Pool(processes=min(J, len(jobs)))
+        results = pool.imap_unordered(CI_fun, jobs)
+        pool.close()
+        pool.join()
+        for i in results:
+            clust, samp, lower, upper, pdf = i[0], i[1], i[2], i[3], i[4]
+            CIs[samp][clust] = (lower,upper)
+            PDFs[samp][clust] = pdf
 
     return CIs, PDFs 
 
@@ -236,6 +246,34 @@ def CI(job):
     u = float(high_index)/num_pts
 
     return (c, s, l, u, pdf)
+
+
+def CI_conservative(job):
+    """
+    Here we use the DCF point values of the mutations assigned to a cluster to compute that cluster's CIs. We have found
+    this produces more conservative estimates of CIs. Specifically, we compute the median of the distribution of DCF point
+    values and use bootstrap resampling to calculate CIs. To be conservative, we use the minimum and maximum observed
+    median across bootstrap replicates, instead of the medians that correspond to e.g. 0.025 and 0.975 quantiles.
+    """
+    c, s, muts, num_tests, bb = job  # c is cluster, s is sample
+    mut = list(filter(lambda m: m.assigned_cluster == c, muts))
+    bootstrap_reps = 10000
+
+    # get DCF point values for cluster
+    cf_point_vals = []
+    for m in mut:
+        vaf = m.a[s]/m.d[s]
+        cf_point_vals.append( m.assigned_config.v_to_cf(vaf, s, truncate=False)/PURITY[s] )
+
+    median_boot_reps = [np.median(rand.choices(cf_point_vals, k=len(cf_point_vals))) for i in range(bootstrap_reps)]
+    low_CI = np.quantile(median_boot_reps, 0.0)
+    hi_CI = np.quantile(median_boot_reps, 1.0)
+    if low_CI == 1.0:
+        low_CI = 0.999
+    if hi_CI == 0.0:
+        hi_CI = 0.001
+
+    return (c, s, low_CI, hi_CI, [None])
 
 def take_closest(myList, myNumber):
     """

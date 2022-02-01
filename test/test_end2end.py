@@ -16,6 +16,7 @@ def test_end2end():
     K = "6"
     seed = "17"
     j = "2"
+    restarts = "100"
     test_out = this_dir + "/decifer"
     out = subprocess.run(["decifer", mutations, 
                     "-p", purities, 
@@ -25,6 +26,7 @@ def test_end2end():
                     "-k", k,
                     "-K", K,
                     "--seed", seed,
+                    "--restarts", restarts,
                     "-j", j,
                     "-o", test_out,
                     "--debug"])
