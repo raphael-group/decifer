@@ -36,6 +36,7 @@ def parse_args():
     parser.add_argument("--seed", type=int, required=False, default=None, help="Random-generator seed (default: None)")
     parser.add_argument("--debug", required=False, default=False, action='store_true', help='single-threaded mode for development/debugging')
     parser.add_argument("--printallk", required=False, default=False, action='store_true', help='Print all results for each value of K explored by DeCiFer')
+    parser.add_argument("--conservativeCIs", required=False, default=False, action='store_true', help='Beta: compute CIs using DCF point values assigned to cluster instead of cluster likelihood function')
     args = parser.parse_args()
 
     if not os.path.isfile(args.INPUT):
@@ -90,7 +91,8 @@ def parse_args():
 
         "statetrees" : statetrees,
         "debug" : args.debug,
-        "printallk" : args.printallk
+        "printallk" : args.printallk,
+        "conservativeCIs" : args.conservativeCIs
     }
 
 args = parse_args()
