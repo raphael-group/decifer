@@ -59,7 +59,7 @@ def print_output(vcf, ref_var_depths, cna_overlaps, outdir):
     header = [str(len(chars)) + " #characters"]
     header.append( str(len(vcf.samples)) + " #samples" )
     header.append( "#sample_index\tsample_label\tcharacter_index\tcharacter_label\tref\tvar" )
-    print(header)
+    #print(header)
     with open(f"{outdir}/decifer.input.tsv",'w') as out:
         print("\n".join(header), file=out)
         for char_label in ref_var_depths:
@@ -73,10 +73,15 @@ def print_output(vcf, ref_var_depths, cna_overlaps, outdir):
                     #print(i, vcf.samples[i], char_index, char_label, r, v)
                 char_index += 1
 
-def print_purities(cna_df, sample_index, num_samples, outdir):
+def get_purities(cna_df, num_samples, min_purity):
     purities = {}
     for i, row in cna_df.head(num_samples+1).iterrows():
-        purities[row['SAMPLE']] = 1.0 - row['u_normal'] 
+        purity = 1.0 - row['u_normal']
+        if purity >= min_purity:
+            purities[row['SAMPLE']] = purity
+    return purities
+
+def print_purities(purities, sample_index, num_samples, outdir):
     with open(f"{outdir}/decifer.purity.tsv",'w') as out:
         for sample in sample_index:
             print(sample_index[sample], purities[sample], file=out, sep="\t")
@@ -162,21 +167,45 @@ def main():
     parser.add_argument("-F","--min_vaf", required=True, type=float, help="minimum VAF of ALT allele in at least one sample")
     parser.add_argument("-N","--max_CN", required=False, default=6, type=int, help="maximum total copy number for each observed clone")
     parser.add_argument("-B","--exclude_list", required=False, default=None, type=str, help="BED file of genomic regions to exclude")
+    parser.add_argument("-p","--min_purity", required=False, default=0.0, type=float, help="minimum purity to consider samples")
+    parser.add_argument("-S","--snp_file", required=False, default=None, type=str, help="HATCHet file containing germline SNP counts in tumor samples, baf/tumor.1bed")
     args = parser.parse_args()
 
+
+    # load in vcf file
     vcf_name = os.path.basename(args.vcf_file)
     vcf = VCF(args.vcf_file, gts012=True)
+    num_samples = len(vcf.samples)
     
+    # Load in CNA information
+    cna_df = pd.read_csv(args.cna_file, sep = '\t', index_col=False)
+
+    # get purities and filter by min_purity
+    purities = get_purities(cna_df, num_samples, args.min_purity)
+
+    # restrict samples considered in VCF and CNA file to those that have purity > min_purity
+    vcf.set_samples(list(purities.keys()))
+    cna_df = cna_df.loc[cna_df['SAMPLE'].isin(list(purities.keys()))]
+    # print new CNA file, filtering out samples below min_purity
+    cna_df.to_csv(f"{args.out_dir}/best.seg.ucn", sep="\t", index=False)
+    if args.snp_file:
+        snp_df = pd.read_csv(args.snp_file, sep = '\t', index_col=False, header=None)
+        snp_df = snp_df.loc[snp_df[2].isin(list(purities.keys()))]
+        # rearrange columns for decifer
+        snp_df = snp_df[[2, 0, 1, 3, 4]] 
+        snp_df.to_csv(f"{args.out_dir}/snpfile.1bed", sep="\t", index=False, header=False) 
+
+    num_samples = len(vcf.samples)
+    # print purity information
+    sample_index = { vcf.samples[i] : i for i in range(len(vcf.samples)) }
+    print_purities(purities, sample_index, num_samples, args.out_dir)
+
     # Filtering criteria
     Filter = {}
     Filter['MinDepth'] = args.min_depth
     Filter['MinDepthAltAllele'] = args.min_alt_depth
     Filter['MinVAF'] = args.min_vaf
     
-    num_samples = len(vcf.samples)
-    sample_index = { vcf.samples[i] : i for i in range(len(vcf.samples)) }
-    print(vcf.samples)
-    print(type(vcf.samples))
 
     # ref_var_depths[char_label] = list of (ref,alt) tuples, one for each sample, in same order as vcf.samples
     ref_var_depths = compute_ref_var_depths(vcf, Filter)
@@ -195,10 +224,6 @@ def main():
         blist = pbt.BedTool(f"{args.exclude_list}")
         snps = snps.subtract(blist)
 
-    # Load in CNA information
-    cna_df = pd.read_csv(args.cna_file, sep = '\t', index_col=False)
-    # print purity information
-    print_purities(cna_df, sample_index, num_samples, args.out_dir)
 
     # prepare BED files for CNA intervals for each sample, for overlapping with SNPs
     for sample in vcf.samples:
