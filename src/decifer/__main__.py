@@ -22,7 +22,7 @@ from bisect import bisect_left
 # decifer
 from decifer.parse_args import args
 from decifer.fileio import write_results, write_results_CIs, read_in_state_trees, write_model_selection_results
-from decifer.new_coordinate_ascent import coordinate_descent, objective
+from decifer.new_coordinate_ascent import coordinate_descent, objective, compute_pdfs
 from decifer.mutation import create_mutations
 from decifer.process_input import PURITY, MUTATION_DF
 from decifer.progress_bar import ProgressBar
@@ -54,11 +54,31 @@ def main():
     # infer purity from SNV data, but overwrite purity dict if purity file provided (next line)
     mutations = create_mutations(MUTATION_DF, state_trees, not args['ccf'])
 
+
     if args['betabinomial']:
         betabinom_out = fit_betabinom(args)
         # invert sample_ids to get index for each sample name, according to input file
         get_index = {v : k for k,v in sample_ids.items()}
         betabinomial = {get_index[sam] : betabinom_out[sam][0] for sam in betabinom_out.keys()}
+
+    """
+    # This is to print state trees and likelihoods for truncal cluster for each mutation, for debugging
+    sample = 0 
+    for mut in mutations:
+        print(mut.label)
+        for config,tree in zip(mut.configs, mut.trees):
+            tree_toPrint = ';'.join(map(lambda p : '({},{},{})->({},{},{})'.format(*(p[0]+p[1])), zip(tree[:-1:2], tree[1::2])))
+            DCF_to_VAF_toPrint = config.cf_to_v(PURITY[sample], sample)
+
+
+            if args['betabinomial'] is None:
+                form = (lambda mut : (config.cf_to_v(PURITY[sample], sample), mut.a[sample] + 1, (mut.d[sample] - mut.a[sample]) + 1))
+            else:
+                form = (lambda mut : (config.cf_to_v(PURITY[sample], sample), mut.a[sample], mut.d[sample] - mut.a[sample], betabinomial[sample]))
+            pdf = -np.sum(compute_pdfs(*zip(*[form(mut)])))
+            print(tree_toPrint, DCF_to_VAF_toPrint, pdf)
+    sys.exit("Finished printing!!")
+    """
 
     if args['record']:
         manager = mp.Manager()
