@@ -63,6 +63,7 @@ def write_results(prefix, C, CIs, mut_cluster_assignments, mut_config_assignment
         name = f"{prefix}_output_K{k}.tsv"
     else:
         name = f"{prefix}_output.tsv"
+
     with open(name, 'w') as out:
         header = ["mut_index"]
         header.extend(['VAR_{}'.format(i) for i in range(len(C))])

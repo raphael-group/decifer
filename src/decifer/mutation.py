@@ -20,6 +20,7 @@ class Mutation:
         self.assigned_cluster = 0
         self.label = label
         self.index = index
+        self.PASS = 1
 
     def __str__(self):
         return "\t".join(map(str, [self.label, self.index, self.a, self.d, self.assigned_cluster, self.assigned_config]))
