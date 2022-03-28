@@ -155,7 +155,7 @@ def run_coordinator_iterative(mutations, sample_ids, num_samples, PURITY, args, 
         write_results(prefix, C, CIs, clus, conf, bmut_HQ, PURITY, betabinomial, 'CCF' if args['ccf'] else 'DCF', args['printallk'], k)
         # write low quality mutations to a separate file
         if len(bmut_LQ) > 0:
-            write_results(prefix + "_LowQual", C, CIs, clus, conf, bmut_LQ, PURITY, betabinomial, 'CCF' if args['ccf'] else 'DCF', args['printallk'], k)
+            write_results(prefix + "_Outliers", C, CIs, clus, conf, bmut_LQ, PURITY, betabinomial, 'CCF' if args['ccf'] else 'DCF', args['printallk'], k)
 
     """
     # FOR TESTING
