@@ -189,10 +189,6 @@ def filter_poorly_fit_SNVs(C, mut, vafdevfilter):
         for cluster in vaf_deviations:
             stan_devs[cluster] = np.std(np.asarray( vaf_deviations[cluster] ))
         # go back and filter mutations based on normalized VAF deviations
-        for i in vaf_deviations:
-            print(sample, i)
-            print(stan_devs[i])
-            print(vaf_deviations[i])
         for m in mut:
             # for the sample-specific clusters, standard deviation will be 0 for some samples
             if stan_devs[m.assigned_cluster] > 0:
