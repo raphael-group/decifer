@@ -72,7 +72,6 @@ def write_results(prefix, C, CIs, mut_cluster_assignments, mut_config_assignment
         header.extend(['true_cluster_{}{}'.format(kind, i) for i in range(len(C))])
         header.extend(['point_estimate_{}{}'.format(kind, i)  for i in range(len(C))])
         header.extend(['cmm_CCF{}'.format(i) for i in range(len(C))])
-        header.extend(['cluster_VAF{}'.format(i) for i in range(len(C))])
         header.extend(["Explained", "LHs", "\n"])
         out.write("\t".join(header))
         #out.write('mut_index\t'+"\t".join(['VAR_{}'.format(i) for i in range(len(C))]+['TOT_{}'.format(i) for i in range(len(C))])+'\tcluster\tstate_tree\t'+"\t".join(['true_cluster_{}{}'.format(kind, i) for i in range(len(C))] + ['point_estimate_{}{}'.format(kind, i)  for i in range(len(C))] + ['cmm_CCF{}'.format(i) for i in range(len(C))]) + '\tExplained\tLHs' + '\n')
