@@ -152,10 +152,10 @@ def run_coordinator_iterative(mutations, sample_ids, num_samples, PURITY, args, 
         CIs, PDFs = compute_CIs_mp(set(clus), bmut_HQ, num_samples, betabinomial, J, C, args['debug'], args['conservativeCIs'])
 
         write_results_CIs(prefix, num_samples, clus, sample_ids, CIs, args['printallk'], k)
-        write_results(prefix, C, CIs, clus, conf, bmut_HQ, PURITY, betabinomial, 'CCF' if args['ccf'] else 'DCF', args['printallk'], k)
+        write_results(prefix, C, CIs, conf, bmut_HQ, PURITY, betabinomial, 'CCF' if args['ccf'] else 'DCF', args['printallk'], k)
         # write low quality mutations to a separate file
         if len(bmut_LQ) > 0:
-            write_results(prefix + "_Outliers", C, CIs, clus, conf, bmut_LQ, PURITY, betabinomial, 'CCF' if args['ccf'] else 'DCF', args['printallk'], k)
+            write_results(prefix + "_Outliers", C, CIs, conf, bmut_LQ, PURITY, betabinomial, 'CCF' if args['ccf'] else 'DCF', args['printallk'], k)
 
     """
     # FOR TESTING
