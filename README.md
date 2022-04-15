@@ -130,12 +130,12 @@ DeCiFer requires two input data:
 | Mutation label | a unique name identifying the mutation | Yes |
 | REF | Number of reads with reference allele for the mutation | Yes |
 | ALT | Number of reads with alternate allele for the mutation | Yes |
-| Copy numbers and proportions | Tab-separated `A  B  U` where `A,B` are the inferred allele-specific copy numbers for the segment harboring the mutation and `U` is the corresponding proportion of cells (normal and tumour) with those copy numbers | Yes |
+| Copy numbers and proportions | Tab-separated `A  B  U` where `A,B` are the inferred allele-specific copy numbers for the segment harboring the mutation and `U` is the corresponding proportion of cells (normal and tumour) with those copy numbers. Groups of cells/clones with the same allele-specific copy numbers must be combined into a single proportion. | Yes |
 | Additional copy numbers | An arbitrary number of fields with the same format as of `Copy numbers and proportions` describing the proportions of cells with different copy numbers. Note that all proportions should always sum up to 1. | No |
 
 2. Input tumour purity in a two-column tab-separated file where every row `SAMPLE-INDEX   TUMOUR-PURITY` defines the tumour purity `TUMOUR-PURITY` of a sample with index `SAMPLE-INDEX`.
 
-For generating the input files for DeCiFer, please see the [scripts](/scripts) directory for more information.
+For generating the input files for DeCiFer, please see the [scripts](/scripts) directory for more information. Examples may be found in the [data](/test/data) directory.
 
 <a name="optionaldata"></a>
 ### Optional input data
@@ -176,7 +176,7 @@ DeCiFer's main output file (ending with `_output.tsv`) corresponds to a single T
 | `VAR_{SAMPLE}` | Variant sequencing read count of the mutation for every sample with index `{SAMPLE}` |
 | `cluster` | Unique identifier of the inferred mutation cluster |
 | `state_tree` | Inferred state tree defined as a `->`-separated edge list of genotypes |
-| `cluster` | Unique identifier of the inferred mutation cluster |
+| `cluster` | Unique identifier of the inferred mutation cluster; cluster `1` is the truncal cluster, and the next `p` clusters (where `p` is the number of samples) are sample-specific clusters, or SNVs that are unique to one of the `p` samples |
 | `true_cluster_DCF{SAMPLE}` | Inferred true cluster DCF of the mutation in every sample with index `{SAMPLE}`; when execute in CCF-mode, DCF will be CCF instead; these values take the form `cluster center;(lower cluster CI, upper cluster CI)` |
 | `point_estimate_DCF{SAMPLE}` | Point estimate of the mutation DCF in every sample with index `{SAMPLE}`; when execute in CCF-mode, DCF will be CCF instead |
 | `cmm_CCF{SAMPLE}` | Inferred CCF of the mutation under the previous CMM assumption in every sample with index `{SAMPLE}` |
@@ -187,7 +187,9 @@ For the column containing the `true_cluster_DCF`, the CIs correspond to the 95% 
 
 These cluster CIs may also be found in the output file ending in `_cluster.CIs.tsv`. This file contains this information in a more condensed format, reporting only the upper and lower CIs for each cluster for each sample (in column `f_lb` and `f_ub` respectively).
 
-Lastly, the file ending in `_model_selection.tsv` shows how decifer selected the best value of K clusters. 
+The file ending in `_model_selection.tsv` shows how decifer selected the best value of K clusters. 
+
+Lastly, the file ending in `_Outliers_output.tsv` contains SNVs that were flagged as outliers: the variant allele frequency (VAF) of the SNV was more than 1.5 (default) standard deviations away from the VAF of the assigned cluster center. Users may change this behavior via the `--vafdevfilter` option. This default behavior filters out noisy data or germline contamination that manifests as e.g. SNVs being assigned to the truncal cluster yet having very low DCF values in the `point_estimate_DCF` column of the output file.
 
 <a name="requirements"></a>
 ### System requirements
