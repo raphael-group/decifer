@@ -56,17 +56,27 @@ def read_purity(purity_file):
             PURITY[int(line[0])] = float(line[1])
     return PURITY
 
-def write_results(prefix, C, CIs, mut_cluster_assignments, mut_config_assignments, mutations, purity, bb, kind, printallk, k):
+def write_results(prefix, C, CIs, mut_config_assignments, mutations, purity, bb, kind, printallk, k):
     clust_center_scaled = (lambda sam, clust: C[sam][clust]/purity[sam])
     # CIs do not need to be rescaled by purity as they alrady are during CI function within __main__
     if printallk:
         name = f"{prefix}_output_K{k}.tsv"
     else:
         name = f"{prefix}_output.tsv"
+
     with open(name, 'w') as out:
-        out.write('mut_index\t'+"\t".join(['VAR_{}'.format(i) for i in range(len(C))]+['TOT_{}'.format(i) for i in range(len(C))])+'\tcluster\tstate_tree\t'+"\t".join(['true_cluster_{}{}'.format(kind, i) for i in range(len(C))] + ['point_estimate_{}{}'.format(kind, i)  for i in range(len(C))] + ['cmm_CCF{}'.format(i) for i in range(len(C))]) + '\tExplained\tLHs' + '\n')
-        #for mut, clust in zip(mutations, mut_cluster_assignments):
-        for mut, clust in zip(mutations, mut_cluster_assignments):
+        header = ["mut_index"]
+        header.extend(['VAR_{}'.format(i) for i in range(len(C))])
+        header.extend(['TOT_{}'.format(i) for i in range(len(C))])
+        header.extend(["cluster", "state_tree"])
+        header.extend(['true_cluster_{}{}'.format(kind, i) for i in range(len(C))])
+        header.extend(['point_estimate_{}{}'.format(kind, i)  for i in range(len(C))])
+        header.extend(['cmm_CCF{}'.format(i) for i in range(len(C))])
+        header.extend(["Explained", "LHs\n"])
+        out.write("\t".join(header))
+        #out.write('mut_index\t'+"\t".join(['VAR_{}'.format(i) for i in range(len(C))]+['TOT_{}'.format(i) for i in range(len(C))])+'\tcluster\tstate_tree\t'+"\t".join(['true_cluster_{}{}'.format(kind, i) for i in range(len(C))] + ['point_estimate_{}{}'.format(kind, i)  for i in range(len(C))] + ['cmm_CCF{}'.format(i) for i in range(len(C))]) + '\tExplained\tLHs' + '\n')
+        for mut in mutations:
+            clust = mut.assigned_cluster
             label = mut.label
             #CF = [c[clust] for c in C]
             CF = [ ";".join([str(clust_center_scaled(sam, clust)), str(CIs[sam][clust]).replace(" ", "")]) for sam in range(len(C))]
@@ -82,6 +92,7 @@ def write_results(prefix, C, CIs, mut_cluster_assignments, mut_config_assignment
             rightbC = [config.cf_bounds(i)[1] for i in range(len(vaf))]
             estC = [config.v_to_cf(vaf[sam], sam, truncate = False)/purity[sam] for sam in range(len(vaf))]
             cmmC = [mut.compute_cmm_ccf(vaf[sam], purity, sam)/purity[sam] for sam in range(len(vaf))]
+            #cluster_vaf = [config.cf_to_v(C[sam][clust], sam) for sam in range(len(vaf))]
 
             explained = []
             lhs = []
@@ -98,7 +109,6 @@ def write_results(prefix, C, CIs, mut_cluster_assignments, mut_config_assignment
             explained = ';'.join(map(str, explained))
             lhs = ';'.join(map(str, lhs))
             
-            #out.write('\t'.join(map(str, [label] + VAR + TOT + [clust] + [tree] + CF + leftbC + rightbC + vaf + estC + cmmC + [explained, lhs]))+'\n')
             out.write('\t'.join(map(str, [label] + VAR + TOT + [clust] + [tree] + CF + estC + cmmC + [explained, lhs]))+'\n')
 
     # with open('{}.C'.format(prefix), 'w') as out:

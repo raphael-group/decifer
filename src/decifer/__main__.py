@@ -22,7 +22,7 @@ from bisect import bisect_left
 # decifer
 from decifer.parse_args import args
 from decifer.fileio import write_results, write_results_CIs, read_in_state_trees, write_model_selection_results
-from decifer.new_coordinate_ascent import coordinate_descent, objective
+from decifer.new_coordinate_ascent import coordinate_descent, objective, compute_pdfs
 from decifer.mutation import create_mutations
 from decifer.process_input import PURITY, MUTATION_DF
 from decifer.progress_bar import ProgressBar
@@ -54,11 +54,31 @@ def main():
     # infer purity from SNV data, but overwrite purity dict if purity file provided (next line)
     mutations = create_mutations(MUTATION_DF, state_trees, not args['ccf'])
 
+
     if args['betabinomial']:
         betabinom_out = fit_betabinom(args)
         # invert sample_ids to get index for each sample name, according to input file
         get_index = {v : k for k,v in sample_ids.items()}
         betabinomial = {get_index[sam] : betabinom_out[sam][0] for sam in betabinom_out.keys()}
+
+    """
+    # This is to print state trees and likelihoods for truncal cluster for each mutation, for debugging
+    sample = 0 
+    for mut in mutations:
+        print(mut.label)
+        for config,tree in zip(mut.configs, mut.trees):
+            tree_toPrint = ';'.join(map(lambda p : '({},{},{})->({},{},{})'.format(*(p[0]+p[1])), zip(tree[:-1:2], tree[1::2])))
+            DCF_to_VAF_toPrint = config.cf_to_v(PURITY[sample], sample)
+
+
+            if args['betabinomial'] is None:
+                form = (lambda mut : (config.cf_to_v(PURITY[sample], sample), mut.a[sample] + 1, (mut.d[sample] - mut.a[sample]) + 1))
+            else:
+                form = (lambda mut : (config.cf_to_v(PURITY[sample], sample), mut.a[sample], mut.d[sample] - mut.a[sample], betabinomial[sample]))
+            pdf = -np.sum(compute_pdfs(*zip(*[form(mut)])))
+            print(tree_toPrint, DCF_to_VAF_toPrint, pdf)
+    sys.exit("Finished printing!!")
+    """
 
     if args['record']:
         manager = mp.Manager()
@@ -125,12 +145,17 @@ def run_coordinator_iterative(mutations, sample_ids, num_samples, PURITY, args, 
     for k in k_to_print:
         C, bmut, clus, conf, objs = map(lambda D : shared[D][best[k]], ['C', 'bmut', 'clus', 'conf', 'objs'])
         # C is list of lists; rows are samples, columns are cluster IDs, values are CCFs
+
+        bmut_HQ, bmut_LQ = filter_poorly_fit_SNVs(C, bmut, args['vafdevfilter'])
+
         #CIs = [[()]*len(C[i]) for i in range(len(C))] # list of lists to store CIs, same structure as C
-        CIs, PDFs = compute_CIs_mp(set(clus), bmut, num_samples, betabinomial, J, C, args['debug'], args['conservativeCIs'])
+        CIs, PDFs = compute_CIs_mp(set(clus), bmut_HQ, num_samples, betabinomial, J, C, args['debug'], args['conservativeCIs'])
 
         write_results_CIs(prefix, num_samples, clus, sample_ids, CIs, args['printallk'], k)
-        write_results(prefix, C, CIs, clus, conf, bmut, PURITY, betabinomial, 'CCF' if args['ccf'] else 'DCF', args['printallk'], k)
-        #write_results_decifer_format(bmut, clus, prefix, selected, num_samples, C)
+        write_results(prefix, C, CIs, conf, bmut_HQ, PURITY, betabinomial, 'CCF' if args['ccf'] else 'DCF', args['printallk'], k)
+        # write low quality mutations to a separate file
+        if len(bmut_LQ) > 0:
+            write_results(prefix + "_Outliers", C, CIs, conf, bmut_LQ, PURITY, betabinomial, 'CCF' if args['ccf'] else 'DCF', args['printallk'], k)
 
     """
     # FOR TESTING
@@ -151,7 +176,34 @@ def run_coordinator_iterative(mutations, sample_ids, num_samples, PURITY, args, 
                 f.write("\n")
     """
 
+def filter_poorly_fit_SNVs(C, mut, vafdevfilter):
+    # Check for poorly fit SNVs within each sample
+    # SNV flagged as low quality (mutation.PASS == 0) if it poorly fits in AT LEAST one sample
+    for sample in range(len(C)):
+        vaf_deviations, stan_devs = defaultdict(list), defaultdict(float)
+        # compute VAF deviations for each mutation
+        for m in mut:
+            vaf_dev = compute_vaf_dev(C, m, sample)
+            vaf_deviations[m.assigned_cluster].append( vaf_dev  )
+        # compute standard deviations for each cluster
+        for cluster in vaf_deviations:
+            stan_devs[cluster] = np.std(np.asarray( vaf_deviations[cluster] ))
+        # go back and filter mutations based on normalized VAF deviations
+        for m in mut:
+            # for the sample-specific clusters, standard deviation will be 0 for some samples
+            if stan_devs[m.assigned_cluster] > 0:
+                vaf_dev_normalized = compute_vaf_dev(C, m, sample)/stan_devs[m.assigned_cluster]
+                if abs(vaf_dev_normalized) > vafdevfilter:
+                    m.PASS = 0
+    # create list of high and low quality SNVs
+    muts_HQ = [m for m in mut if m.PASS == 1]
+    muts_LQ = [m for m in mut if m.PASS == 0]
+    return muts_HQ, muts_LQ
 
+def compute_vaf_dev(C, mut, sample):
+    cluster_vaf = mut.assigned_config.cf_to_v(C[sample][mut.assigned_cluster], sample)
+    snv_vaf = float(mut.a[sample]) / float(mut.d[sample])
+    return cluster_vaf - snv_vaf
 
 def print_feasibleVAFs(cluster_ids, muts, num_samples, bb, C):
     with open("feasibleVAFs.txt", 'w') as f:
