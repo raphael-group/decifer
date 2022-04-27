@@ -21,7 +21,7 @@ def read_in_state_trees(filename):
             for j in range(1, count+1):
                 state_tree = [tuple(map(int, l.split(','))) for l in lines[i+1+j].strip().split(' ')]
                 sts.append(state_tree)
-            state_trees[tuple(states)] = sts
+            state_trees[tuple(sorted(states))] = sts
             i = i + 1 + count + 1
     return state_trees
 

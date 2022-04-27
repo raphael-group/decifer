@@ -86,7 +86,7 @@ def get_configs(_state_trees, CNs, mus, dcf_mode):
     else:
         # get state trees for observed CN states covering this mutation
         # state_trees (below) is list of lists, each list a particular state tree
-        state_trees = _state_trees[tuple(set(CNs))]
+        state_trees = _state_trees[tuple(sorted(CNs))]
         configurations = []
         alltrees = []
 
