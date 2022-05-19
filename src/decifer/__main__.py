@@ -28,6 +28,7 @@ from decifer.process_input import PURITY, MUTATION_DF
 from decifer.progress_bar import ProgressBar
 from decifer.generator import fit_betabinom
 
+from sklearn.metrics import silhouette_score
 
 def main():
     sys.stderr.write('\n'.join(['Arguments:'] + ['\t{} : {}'.format(a, args[a]) for a in args]) + '\n')
@@ -53,7 +54,6 @@ def main():
     # store info from MUTATION_DF pd.DataFrame in mutations list, containing Mutation objects as elements
     # infer purity from SNV data, but overwrite purity dict if purity file provided (next line)
     mutations = create_mutations(MUTATION_DF, state_trees, not args['ccf'])
-
 
     if args['betabinomial']:
         betabinom_out = fit_betabinom(args)
@@ -120,23 +120,14 @@ def run_coordinator_iterative(mutations, sample_ids, num_samples, PURITY, args, 
     # best[cluster number k] = min objective across runs/restarts
     best = {k : min(list(filter(lambda j : j[1] == k, jobs)), key=(lambda j : shared['objs'][j])) for k in range(mink, maxk+1)}
 
-    #ubleft = .25 * len(mutations) * num_samples * 10
-    objs = {k : shared['objs'][best[k]] for k in best}
-    for k in range(mink+1, maxk+1):
-        if objs[k - 1] < objs[k]:
-            best[k] = best[k - 1]
-            objs[k] = objs[k - 1]
-    chk = (lambda v : v if v != 0.0 else 0.01)
-    left = (lambda k : min((objs[k - 1] - objs[k]) / abs(chk(objs[k - 1])), ubleft) if k > mink else ubleft)
-    right = (lambda k : (objs[k] - objs[k+1]) / abs(chk(objs[k])))
-
-    elbow = {k : left(k) - right(k) for k in range(mink, maxk)}
-    if mink < maxk:
-        selected = max(range(mink, maxk), key=(lambda k : elbow[k]))
+    # Select the best number of clusters given the range of clusters from mink to maxk
+    objs = {k: shared['objs'][best[k]] for k in best}
+    if args['silhouette']:
+        selected, silhouette_scores = silhouette_model_selection(shared, best, mink, maxk)
+        write_model_selection_results(mink, maxk, objs, silhouette_scores, selected, prefix, args['silhouette'])
     else:
-        selected = mink
-
-    write_model_selection_results( mink, maxk, objs, elbow, selected, prefix )
+        selected, objs, elbow = elbow_criteria_model_selection(objs, best, mink, maxk, ubleft)
+        write_model_selection_results( mink, maxk, objs, elbow, selected, prefix, args['silhouette'])
 
     if args['printallk']:
         k_to_print = [ k for k in range(mink, maxk+1) ]
@@ -175,6 +166,40 @@ def run_coordinator_iterative(mutations, sample_ids, num_samples, PURITY, args, 
                 f.write(" ".join( list(map(str, [c, s, C[s][c], CIs[s][c][0], CIs[s][c][1]] ))))
                 f.write("\n")
     """
+
+def silhouette_model_selection(shared, best, mink, maxk):
+    silhouette_scores = {}
+    for k in range(mink, maxk + 1):
+        mutations = shared['bmut'][best[k]]
+        X, labels = [], []
+        for mut in mutations:
+            # don't use mutations that couldn't be assigned to any cluster
+            if mut.assigned_cluster > 0:
+                labels.append( mut.assigned_cluster )
+                var = mut.a
+                tot = mut.d
+                vaf = [float(v) / t if t > 0 else 0.5 for v, t in zip(var, tot)]
+                estC = [mut.assigned_config.v_to_cf(vaf[sam], sam, truncate = False)/PURITY[sam] for sam in range(len(mut.a))]
+                X.append(estC)
+        silhouette_scores[k] = silhouette_score(np.array(X), np.array(labels))
+    selected = max(range(mink, maxk+1), key=(lambda k: silhouette_scores[k]))
+    return selected, silhouette_scores
+
+def elbow_criteria_model_selection(objs, best, mink, maxk, ubleft):
+    for k in range(mink + 1, maxk + 1):
+        if objs[k - 1] < objs[k]:
+            best[k] = best[k - 1]
+            objs[k] = objs[k - 1]
+    chk = (lambda v: v if v != 0.0 else 0.01)
+    left = (lambda k: min((objs[k - 1] - objs[k]) / abs(chk(objs[k - 1])), ubleft) if k > mink else ubleft)
+    right = (lambda k: (objs[k] - objs[k + 1]) / abs(chk(objs[k])))
+
+    elbow = {k: left(k) - right(k) for k in range(mink, maxk)}
+    if mink < maxk:
+        selected = max(range(mink, maxk), key=(lambda k: elbow[k]))
+    else:
+        selected = mink
+    return selected, objs, elbow
 
 def filter_poorly_fit_SNVs(C, mut, vafdevfilter):
     # Check for poorly fit SNVs within each sample

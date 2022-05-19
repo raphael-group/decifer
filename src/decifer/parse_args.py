@@ -38,6 +38,7 @@ def parse_args():
     parser.add_argument("--printallk", required=False, default=False, action='store_true', help='Print all results for each value of K explored by DeCiFer')
     parser.add_argument("--conservativeCIs", required=False, default=False, action='store_true', help='Beta: compute CIs using DCF point values assigned to cluster instead of cluster likelihood function')
     parser.add_argument("--vafdevfilter", type=float, required=False, default=1.5, help='Filter poorly fit SNVs with VAFs that are more than this number of standard deviations away from the cluster center VAF (default 1.5)')
+    parser.add_argument("--silhouette", required=False, default=False, action='store_true', help='Beta: select the number of clusters using a silhouette score')
     args = parser.parse_args()
 
     if not os.path.isfile(args.INPUT):
@@ -94,7 +95,8 @@ def parse_args():
         "debug" : args.debug,
         "printallk" : args.printallk,
         "conservativeCIs" : args.conservativeCIs,
-        "vafdevfilter": args.vafdevfilter
+        "vafdevfilter": args.vafdevfilter,
+        "silhouette": args.silhouette
     }
 
 args = parse_args()
