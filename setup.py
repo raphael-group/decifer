@@ -12,7 +12,7 @@ from setuptools import setup
 
 setuptools.setup(
     name='decifer',
-    version='v2.1.1',
+    version='v2.1.2',
     python_requires='>=3.7.*',
     packages=['decifer'],
     package_dir={'': 'src'},

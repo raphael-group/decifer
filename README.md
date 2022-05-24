@@ -185,7 +185,7 @@ DeCiFer's main output file (ending with `_output.tsv`) corresponds to a single T
 
 For the column containing the `true_cluster_DCF`, the CIs correspond to the 95% credible interval of the posterior distribution of the DCF cluster center (Eqn 8 in manuscript and S23 in supplement) . These CIs have been corrected for multiple tests. Specifically, for each cluster, we find the lower CI by finding the X=[0.025/(number of hypothesis tests)] quantile, where the number of tests corresponds to (number of clusters)\*(number of samples for patient). The same procedure is used for the upper CI, by finding the quantile that corresponds to 1-X.
 
-These cluster CIs may also be found in the output file ending in `_cluster.CIs.tsv`. This file contains this information in a more condensed format, reporting only the upper and lower CIs for each cluster for each sample (in column `f_lb` and `f_ub` respectively).
+These cluster CIs may also be found in the output file ending in `_cluster.CIs.tsv`. This file contains this information in a more condensed format, reporting only the upper and lower CIs for each cluster for each sample (in column `f_lb` and `f_ub` respectively). These numbers may contain "NaN" if no mutations were assigned to that particular cluster.
 
 The file ending in `_model_selection.tsv` shows how decifer selected the best value of K clusters. 
 
