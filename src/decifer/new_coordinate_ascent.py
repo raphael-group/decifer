@@ -65,9 +65,16 @@ def optimize_assignments(mutations, C, num_samples, num_clusters, bb, last=False
 
     def select(m):
         # m in a single element from mutations
+        # each element of m.configs list is Config object for a particular cn_state, cn_prop
+        # this information, along with the cluster ID, is used to convert to and from DCF/CCF <-> VAF
+        # here, combs list of tuples (config, cluster) allows us to iterate through each genotype tree and
+        # cluster, to assign the combo that has the highest likelihood
 
-        # i *think* each element of m.configs list is Config object for a particular cn_state, cn_prop
-        combs = [(config, clust) for config in m.configs for clust in range(num_clusters)]
+        # let's only include truncal genotype trees for cluster 1
+        combs = [(config, 1) for config in m.configs if len(config.desc_set) >= len(config.cn_props)-1]
+        for clust in [i for i in range(num_clusters) if i != 1]:
+            for config in m.configs:
+                combs.append( (config, clust) )
         # form returns a 3-tuple (VAF, a, d-a), where
         # VAF is computed by converting from DCF/CCF cluster center for a sample, a is ALT depth, d is total depth
         if bb is None:
