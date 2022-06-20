@@ -77,14 +77,6 @@ def optimize_assignments(mutations, C, num_samples, num_clusters, bb, last=False
         # here, combs list of tuples (config, cluster) allows us to iterate through each genotype tree and
         # cluster, to assign the combo that has the highest likelihood
 
-        # let's only include truncal genotype trees for cluster 1
-        """
-        combs = [(config, 1) for config in m.configs if len(config.desc_set) >= len(config.cn_props)-1]
-        for clust in [i for i in range(num_clusters) if i != 1]:
-            for config in m.configs:
-                combs.append( (config, clust) )
-        """
-
         combs = [(config, clust) for config in m.configs for clust in range(num_clusters)]        
         # form returns a 3-tuple (VAF, a, d-a), where
         # VAF is computed by converting from DCF/CCF cluster center for a sample, a is ALT depth, d is total depth
