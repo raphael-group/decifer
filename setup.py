@@ -25,7 +25,8 @@ setuptools.setup(
         'scipy>=1.2.1',
         'pandas',
         'lemon',
-        'seaborn>=0.7.1'
+        'seaborn>=0.7.1',
+        'scikit-learn>=1.1.1'
     ],
     include_package_data = True,
     package_data = {
