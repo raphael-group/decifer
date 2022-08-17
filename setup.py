@@ -13,7 +13,7 @@ from setuptools import setup
 setuptools.setup(
     name='decifer',
     version='v2.1.1',
-    python_requires='>=3.7.*',
+    python_requires='>=3.8.*',
     packages=['decifer'],
     package_dir={'': 'src'},
     author='Simone Zaccaria and Gryte Satas and Mohammed El-Kebir',
