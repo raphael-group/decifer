@@ -12,8 +12,8 @@ from setuptools import setup
 
 setuptools.setup(
     name='decifer',
-    version='v2.1.2',
-    python_requires='>=3.7.*',
+    version='v2.1.3',
+    python_requires='>=3.8.*',
     packages=['decifer'],
     package_dir={'': 'src'},
     author='Simone Zaccaria and Gryte Satas and Mohammed El-Kebir',
@@ -25,7 +25,8 @@ setuptools.setup(
         'scipy>=1.2.1',
         'pandas',
         'lemon',
-        'seaborn>=0.7.1'
+        'seaborn>=0.7.1',
+        'scikit-learn>=1.1.1'
     ],
     include_package_data = True,
     package_data = {

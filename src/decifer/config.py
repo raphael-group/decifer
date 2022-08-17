@@ -103,7 +103,7 @@ class Config:
     def c_to_v(self, c, sample):
         lam = self.c_to_lam(c, sample)
         v = self.v(lam, sample)
-        if (lam > -THRESHOLD and lam < 1 + THRESHOLD): 
+        if (lam > -THRESHOLD and lam < self.lam_limit(sample) + THRESHOLD):
             if v < 0: return 0.0
             if v > 1: return 1.0
             return v
@@ -116,7 +116,7 @@ class Config:
         lam = self.v_to_lam(v, sample)
         c = self.c(lam, sample)
         if truncate:
-            if (lam > -THRESHOLD and lam < 1 + THRESHOLD): 
+            if (lam > -THRESHOLD and lam < self.lam_limit(sample) + THRESHOLD):
                 if c < 0: return 0.0
                 if c > PURITY[sample]: return PURITY[sample]
                 return c
@@ -127,7 +127,7 @@ class Config:
     def d_to_v(self, d, sample):
         lam = self.d_to_lam(d, sample)
         v = self.v(lam, sample)
-        if (lam > -THRESHOLD and lam < 1 + THRESHOLD): 
+        if (lam > -THRESHOLD and lam < self.lam_limit(sample) + THRESHOLD):
             if v < 0: return 0.0
             if v > 1: return 1.0
             return v
@@ -140,7 +140,7 @@ class Config:
         lam = self.v_to_lam(v, sample)
         d = self.d(lam, sample)
         if truncate:
-            if (lam > -THRESHOLD and lam < 1 + THRESHOLD): 
+            if (lam > -THRESHOLD and lam < self.lam_limit(sample) + THRESHOLD):
                 if d < 0: return 0.0
                 if d > PURITY[sample]: return PURITY[sample]
                 return d
@@ -164,3 +164,11 @@ class Config:
         # append CN proportions for this sample
         for c in cn_props:
             self.cn_props[c].append(cn_props[c])
+
+    def lam_limit(self, sample):
+        # if mut_state is 1,1,upper bound of lambda is the proportion of diploid cells that are tumor cells
+        # o.w. upper bound is 1
+        if self.mut_state == tuple((1,1)):
+            return PURITY[sample]
+        else:
+            return 1.0

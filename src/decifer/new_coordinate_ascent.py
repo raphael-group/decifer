@@ -22,14 +22,21 @@ SEQERROR = 1e-40
 
 
 def coordinate_descent(restart, seed, mutations, num_samples, num_clusters, MAX_IT=5, record=None, bb=None, purity=None):
-    # rest = number of variably present clusters subject to model selection, fixed clusters include truncal, absent, and sample specific SNVs
-    rest = num_clusters - (2 + num_samples)
-    assert rest >= 0, 'Number of clusters is too low!'
+
     # initialize cluster centers C; a list of lists, where each list is the cluster centers for a sample:
     # [absent, truncal, sample specific clusters (truncal if sample index, 0 otherwise),
     # variably present clusters with random initializations]
-    form = ( lambda L, sam : [0.0, purity[sam]] + [purity[sam] if s == sam else 0.0 for s in range(num_samples)]
-                            + list(L) )
+    if num_samples == 1:
+        # if analyzing single sample, don't specify sample-specific truncal clusters, since this is already the case
+        # with cluster 1 in single-sample mode
+        form = (lambda L, sam: [0.0, purity[sam]] + list(L))
+        rest = num_clusters - 2
+    else:
+        form = ( lambda L, sam : [0.0, purity[sam]] + [purity[sam] if s == sam else 0.0 for s in range(num_samples)] + list(L) )
+        # rest = number of variably present clusters subject to model selection, fixed clusters include truncal, absent, and sample specific SNVs
+        rest = num_clusters - (2 + num_samples)
+
+    assert rest >= 0, 'Number of clusters is too low!'
     C = [ form(np.random.uniform(low=0.0, high=purity[sam], size=rest) if rest > 0 else [], sam) for sam in range(num_samples) ]
     for sam in range(len(C)):
         assert np.all( np.array(C[sam]) <= purity[sam] ), 'out of bounds!'
@@ -65,9 +72,12 @@ def optimize_assignments(mutations, C, num_samples, num_clusters, bb, last=False
 
     def select(m):
         # m in a single element from mutations
+        # each element of m.configs list is Config object for a particular cn_state, cn_prop
+        # this information, along with the cluster ID, is used to convert to and from DCF/CCF <-> VAF
+        # here, combs list of tuples (config, cluster) allows us to iterate through each genotype tree and
+        # cluster, to assign the combo that has the highest likelihood
 
-        # i *think* each element of m.configs list is Config object for a particular cn_state, cn_prop
-        combs = [(config, clust) for config in m.configs for clust in range(num_clusters)]
+        combs = [(config, clust) for config in m.configs for clust in range(num_clusters)]        
         # form returns a 3-tuple (VAF, a, d-a), where
         # VAF is computed by converting from DCF/CCF cluster center for a sample, a is ALT depth, d is total depth
         if bb is None:
