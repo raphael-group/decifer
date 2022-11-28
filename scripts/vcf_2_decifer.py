@@ -24,23 +24,32 @@ from collections import defaultdict
 import argparse
 
 
-def filterByDepthAndVaf(gt_depths, gt_alt_depths, Filter):
+def get_depths(vcf):
+    depths_per_site = []
+    for variant in vcf:
+        depths_per_site.append(variant.gt_depths)
+    mean_depths = np.mean(np.asarray(depths_per_site), axis=0)
+
+    depth_per_sample = {vcf.samples[i] : mean_depths[i] for i in range(len(vcf.samples))}
+    return depth_per_sample
+
+def filterByDepthAndVaf(gt_depths, gt_alt_depths, args):
     PASS = 1
-    if any( np.less(gt_depths, Filter['MinDepth']) ):
+    if any( np.less(gt_depths, args.min_depth) ):
         PASS = 0
     # filter if alt allele isn't greater than the specified threshold in at least one sample
-    if not any( np.greater_equal(gt_alt_depths, Filter['MinDepthAltAllele']) ):
+    if not any( np.greater_equal(gt_alt_depths, args.min_alt_depth) ):
         PASS = 0
     # filter if VAF  isn't greater than the specified threshold in at least one sample
-    if not any( np.greater_equal((gt_alt_depths/gt_depths), Filter['MinVAF']) ):
+    if not any( np.greater_equal((gt_alt_depths/gt_depths), args.min_vaf) ):
         PASS = 0
     return(PASS)
 
-def compute_ref_var_depths(vcf, Filter):
+def compute_ref_var_depths(vcf, args):
     ref_var_depths = defaultdict(list) # ref_var_depths[char_label] = list of (ref,alt) tuples, one for each sample, in same order as vcf.samples
     for variant in vcf:
         if len(variant.ALT) == 1 and variant.var_type == "snp":
-            PASS = filterByDepthAndVaf(np.asarray(variant.gt_depths), np.asarray(variant.gt_alt_depths), Filter)
+            PASS = filterByDepthAndVaf(np.asarray(variant.gt_depths), np.asarray(variant.gt_alt_depths), args)
             #print(np.greater_equal(variant.gt_alt_depths,Filter['MinDepthAltAllele']))
             if PASS:
                 chrom = variant.CHROM
@@ -73,11 +82,11 @@ def print_output(vcf, ref_var_depths, cna_overlaps, outdir):
                     #print(i, vcf.samples[i], char_index, char_label, r, v)
                 char_index += 1
 
-def get_purities(cna_df, num_samples, min_purity):
+def get_purities(cna_df, num_samples, depth_per_sample, min_purity_depth):
     purities = {}
     for i, row in cna_df.head(num_samples+1).iterrows():
         purity = 1.0 - row['u_normal']
-        if purity >= min_purity:
+        if purity*depth_per_sample[row['SAMPLE']] >= min_purity_depth:
             purities[row['SAMPLE']] = purity
     return purities
 
@@ -116,7 +125,8 @@ def print_filtered_sites(filtered_sites, cna_overlaps, outdir):
         total = len(cna_overlaps.keys())
         print("# sites that were filtered due to copy-number states > max_CN", file=out)
         print("filtered: ", filtered, file=out)
-        print("fraction: ", float(filtered/total), file=out)
+        if total:
+            print("fraction: ", float(filtered/total), file=out)
 
 def overlap_cna_snp(vcf_samples, max_CN, snps, out_dir):
     cna_overlaps = defaultdict(list)
@@ -167,24 +177,25 @@ def main():
     parser.add_argument("-F","--min_vaf", required=True, type=float, help="minimum VAF of ALT allele in at least one sample")
     parser.add_argument("-N","--max_CN", required=False, default=6, type=int, help="maximum total copy number for each observed clone")
     parser.add_argument("-B","--exclude_list", required=False, default=None, type=str, help="BED file of genomic regions to exclude")
-    parser.add_argument("-p","--min_purity", required=False, default=0.0, type=float, help="minimum purity to consider samples")
+    parser.add_argument("-p","--min_purity_depth", required=False, default=8.0, type=float, help="minimum purity*depth to consider for excluding samples, this is effecitvely the mean number of tumor reads per site per sample")
     parser.add_argument("-S","--snp_file", required=False, default=None, type=str, help="HATCHet file containing germline SNP counts in tumor samples, baf/tumor.1bed")
     args = parser.parse_args()
 
+    # Load in CNA information
+    cna_df = pd.read_csv(args.cna_file, sep = '\t', index_col=False)
 
     # load in vcf file
     vcf_name = os.path.basename(args.vcf_file)
     vcf = VCF(args.vcf_file, gts012=True)
     num_samples = len(vcf.samples)
     
-    # Load in CNA information
-    cna_df = pd.read_csv(args.cna_file, sep = '\t', index_col=False)
-
+    # calculate mean depth per sample, but pass new VCF file handle; cyvcf2 only allows you to interate through VCF once per file handle
+    depth_per_sample = get_depths(VCF(args.vcf_file, gts012=True))
     # get purities and filter by min_purity
-    purities = get_purities(cna_df, num_samples, args.min_purity)
-
+    purities = get_purities(cna_df, num_samples, depth_per_sample, args.min_purity_depth)
     # restrict samples considered in VCF and CNA file to those that have purity > min_purity
     vcf.set_samples(list(purities.keys()))
+
     cna_df = cna_df.loc[cna_df['SAMPLE'].isin(list(purities.keys()))]
     # print new CNA file, filtering out samples below min_purity
     cna_df.to_csv(f"{args.out_dir}/best.seg.ucn", sep="\t", index=False)
@@ -200,16 +211,11 @@ def main():
     sample_index = { vcf.samples[i] : i for i in range(len(vcf.samples)) }
     print_purities(purities, sample_index, num_samples, args.out_dir)
 
-    # Filtering criteria
-    Filter = {}
-    Filter['MinDepth'] = args.min_depth
-    Filter['MinDepthAltAllele'] = args.min_alt_depth
-    Filter['MinVAF'] = args.min_vaf
-    
 
     # ref_var_depths[char_label] = list of (ref,alt) tuples, one for each sample, in same order as vcf.samples
-    ref_var_depths = compute_ref_var_depths(vcf, Filter)
+    ref_var_depths = compute_ref_var_depths(vcf, args)
 
+    sys.exit()
     # print BED file for SNPs
     with open(f"{args.out_dir}/snps.bed", 'w') as out:
         print("chrom\tstart\tend\tREF\tALT", file=out)
