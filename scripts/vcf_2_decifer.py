@@ -86,8 +86,12 @@ def get_purities(cna_df, num_samples, depth_per_sample, min_purity_depth):
     purities = {}
     for i, row in cna_df.head(num_samples+1).iterrows():
         purity = 1.0 - row['u_normal']
-        if purity*depth_per_sample[row['SAMPLE']] >= min_purity_depth:
-            purities[row['SAMPLE']] = purity
+        try:
+            # samples with low purity won't be in the dict, so check first
+            if purity*depth_per_sample[row['SAMPLE']] >= min_purity_depth:
+                purities[row['SAMPLE']] = purity
+        except:
+            continue
     return purities
 
 def print_purities(purities, sample_index, num_samples, outdir):
@@ -215,7 +219,6 @@ def main():
     # ref_var_depths[char_label] = list of (ref,alt) tuples, one for each sample, in same order as vcf.samples
     ref_var_depths = compute_ref_var_depths(vcf, args)
 
-    sys.exit()
     # print BED file for SNPs
     with open(f"{args.out_dir}/snps.bed", 'w') as out:
         print("chrom\tstart\tend\tREF\tALT", file=out)
