@@ -48,7 +48,7 @@ def filterByDepthAndVaf(gt_depths, gt_alt_depths, args):
 def compute_ref_var_depths(vcf, args):
     ref_var_depths = defaultdict(list) # ref_var_depths[char_label] = list of (ref,alt) tuples, one for each sample, in same order as vcf.samples
     for variant in vcf:
-        if len(variant.ALT) == 1 and variant.var_type == "snp":
+        if variant.var_type in ["snp", "indel"]:
             PASS = filterByDepthAndVaf(np.asarray(variant.gt_depths), np.asarray(variant.gt_alt_depths), args)
             #print(np.greater_equal(variant.gt_alt_depths,Filter['MinDepthAltAllele']))
             if PASS:
