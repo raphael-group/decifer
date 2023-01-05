@@ -47,7 +47,7 @@ def fit_betabinom(args):
     overlap, tot, sel = get_overlap(baf, snps, args['J'])
     sys.stderr.write('The number of retained SNPs is {} over a total of {} SNPs ({:.2%})\n'.format(sel, tot, sel / float(tot)))
     sys.stderr.write('> Fitting Beta-Binomial\n')
-    betabinom = fit(baf, overlap, samples, args['restarts'], args['skip'], args['J'])
+    betabinom = fit(baf, overlap, samples, args['restarts_bb'], args['skip'], args['J'])
     """
     with open(f"{args['output']}_betabinom.tsv", 'w') as out:
         out.write('#SAMPLE\tPRECISION\tNLH\n')
