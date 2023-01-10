@@ -94,12 +94,15 @@ def optimize_assignments(mutations, C, num_samples, num_clusters, bb, last=False
         objs = -np.sum(np.array([grow(sample) for sample in range(num_samples)]), axis=0)
         # taking minimum of negative log probability maximizes probability, finding best cluster
         best = objs.argmin()
-        assert objs[best] < np.inf, 'A mutation cannot be assigned to any cluster: {},{}\n\t{}\n'.format(m.index, m.label, map(lambda x : '{},{}'.format(x.mut_state, x.other_states), m.configs)) + str([m.configs[0].cf_bounds(sam) for sam in range(num_samples)]) + '\n' + str([C[sam][1] for sam in range(num_samples)]) + '\n'
-        # compare best
-        found = combs.index((m.assigned_config, m.assigned_cluster))
-        before = -sum(compute_pdfs(*zip(*[form(combs[found][0], combs[found][1], sample) for sample in range(num_samples)])))
-        assert objs[best] <= before, 'Non scende: {}'.format(C)
-        return (float(objs[best]), combs[best][0], combs[best][1])
+        #assert objs[best] < np.inf, 'A mutation cannot be assigned to any cluster: {},{}\n\t{}\n'.format(m.index, m.label, map(lambda x : '{},{}'.format(x.mut_state, x.other_states), m.configs)) + str([m.configs[0].cf_bounds(sam) for sam in range(num_samples)]) + '\n' + str([C[sam][1] for sam in range(num_samples)]) + '\n'
+        if objs[best] == np.inf:
+            return (np.nan, None, None)
+        else:
+            # compare best
+            found = combs.index((m.assigned_config, m.assigned_cluster))
+            before = -sum(compute_pdfs(*zip(*[form(combs[found][0], combs[found][1], sample) for sample in range(num_samples)])))
+            assert objs[best] <= before, 'Non scende: {}'.format(C)
+            return (float(objs[best]), combs[best][0], combs[best][1])
 
     def update(m, best):
         m.assigned_config = best[1]
