@@ -55,7 +55,7 @@ def coordinate_descent(restart, seed, mutations, num_samples, num_clusters, MAX_
         assert len(objs) == 0 or obj - objs[-1] <= TOLERANCE, 'Objective is not decreasing after centers: {}'.format(objs + [obj])
         objs.append(obj)
         IT += 1
-    #C[0][5] = 0.0
+
     mutations, obj = optimize_assignments(mutations, C, num_samples, num_clusters, bb, last=True)
     assert len(objs) == 0 or obj - objs[-1] <= TOLERANCE, 'Objective is not decreasing after assignments: {}'.format(objs + [obj])    
     objs.append(obj)
@@ -95,13 +95,14 @@ def optimize_assignments(mutations, C, num_samples, num_clusters, bb, last=False
         # taking minimum of negative log probability maximizes probability, finding best cluster
         best = objs.argmin()
         #assert objs[best] < np.inf, 'A mutation cannot be assigned to any cluster: {},{}\n\t{}\n'.format(m.index, m.label, map(lambda x : '{},{}'.format(x.mut_state, x.other_states), m.configs)) + str([m.configs[0].cf_bounds(sam) for sam in range(num_samples)]) + '\n' + str([C[sam][1] for sam in range(num_samples)]) + '\n'
-        if objs[best] == np.inf:
-            return (np.nan, None, None)
+        if np.isnan(objs[best]) or objs[best] == np.inf:
+            return (np.nan, m.assigned_config, m.assigned_cluster)
         else:
             # compare best
             found = combs.index((m.assigned_config, m.assigned_cluster))
             before = -sum(compute_pdfs(*zip(*[form(combs[found][0], combs[found][1], sample) for sample in range(num_samples)])))
-            assert objs[best] <= before, 'Non scende: {}'.format(C)
+            #assert objs[best] <= before, 'Non scende: {}'.format(C)
+            assert objs[best] <= before, f'assert: {objs[best]}, {before}'
             return (float(objs[best]), combs[best][0], combs[best][1])
 
     def update(m, best):
@@ -111,7 +112,16 @@ def optimize_assignments(mutations, C, num_samples, num_clusters, bb, last=False
             assert m.assigned_config.cf_bounds(sam)[0] - 0.05 <= C[sam][m.assigned_cluster] <= m.assigned_config.cf_bounds(sam)[1] + 0.05, (C[sam][m.assigned_cluster], m.assigned_config.cf_bounds(sam), m.assigned_config.d_to_lam(C[sam][m.assigned_cluster], sam))
         return best[0]
 
-    return mutations, sum(map(lambda m : update(m, select(m)), mutations))
+    objectives_best = []
+    for m in mutations:
+        best = select(m) 
+        if np.isnan(best[0]):
+            mutations.remove(m)
+        else:
+            objectives_best.append( update(m, best) )
+
+    #return mutations, sum(map(lambda m : update(m, select(m)), mutations))
+    return mutations, sum(objectives_best)
 
 
 def optimize_cluster_centers(mutations, num_samples, C_old, V_old, num_clusters, bb, purity):
